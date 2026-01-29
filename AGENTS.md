@@ -29,6 +29,7 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 ## Commit & Pull Request Guidelines
 - No git history detected in this folder. Use short, imperative commit subjects; optional scope prefixes like `api:` or `ui:`.
 - PRs should include a clear description, screenshots for UI/chart changes, and notes about any API/gateway behavior changes.
+- Commit and push after each change.
 
 ## Security & Configuration Tips
 - Never commit credentials, account IDs, or session cookies.
