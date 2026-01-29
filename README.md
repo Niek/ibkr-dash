@@ -10,6 +10,10 @@ A lightweight PHP dashboard for Interactive Brokers that shows:
 
 The app depends on the IBKR Client Portal Gateway. For long-lived sessions, [ibeam](https://github.com/Voyz/ibeam) is recommended.
 
+## Screenshot
+
+![Dashboard with privacy blur enabled](screenshot.jpg)
+
 ## Requirements
 
 - PHP 8.x (tested with built-in server)

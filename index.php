@@ -1162,11 +1162,47 @@ foreach ($accountsView as $index => $account) {
     <title>IBKR Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1/css/bulma.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --privacy-blur: 6px;
+        }
+        .sensitive {
+            transition: filter 150ms ease;
+        }
+        .chart-panel {
+            position: relative;
+            height: 380px;
+        }
+        .chart-panel canvas {
+            width: 100% !important;
+            height: 380px !important;
+        }
+        body.privacy-blur .sensitive {
+            filter: blur(var(--privacy-blur));
+        }
+        #privacyToggle {
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        #privacyToggle[data-active="true"] {
+            background: rgba(255, 255, 255, 0.12);
+        }
+        .pnl-percent {
+            margin-left: 2px;
+            white-space: nowrap;
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
     <div class="navbar-brand">
         <span class="navbar-item has-text-weight-bold">IBKR Dash</span>
+    </div>
+    <div class="navbar-menu is-active">
+        <div class="navbar-end">
+            <div class="navbar-item">
+                <button class="button is-dark is-inverted is-small" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">👁️</button>
+            </div>
+        </div>
     </div>
 </nav>
 
@@ -1215,8 +1251,8 @@ foreach ($accountsView as $index => $account) {
                                 <p class="card-header-title is-size-6">Account Snapshot</p>
                             </header>
                             <div class="card-content">
-                                <p class="has-text-grey is-size-7">Account: <?= htmlspecialchars($account['id']) ?></p>
-                                <p class="title is-4"><?= htmlspecialchars($account['netLiquidationDisplay']) ?></p>
+                                <p class="has-text-grey is-size-7">Account: <span class="sensitive"><?= htmlspecialchars($account['id']) ?></span></p>
+                                <p class="title is-4"><span class="sensitive"><?= htmlspecialchars($account['netLiquidationDisplay']) ?></span></p>
                                 <p class="has-text-grey is-size-7">Net liquidation<?= $account['netLiquidationSource'] ? ' (' . htmlspecialchars($account['netLiquidationSource']) . ')' : '' ?></p>
                             </div>
                         </div>
@@ -1244,7 +1280,7 @@ foreach ($accountsView as $index => $account) {
                                         <?php foreach ($cashItems as $cashIndex => $balance): ?>
                                             <div class="tags has-addons mr-2 mb-2">
                                                 <span class="tag is-dark"><?= htmlspecialchars($balance['currency']) ?></span>
-                                                <span class="tag is-link"><?= htmlspecialchars(number_format((float)$balance['value'], 2)) ?></span>
+                                                <span class="tag is-link sensitive"><?= htmlspecialchars(number_format((float)$balance['value'], 2)) ?></span>
                                             </div>
                                             <?php if ($cashIndex < count($cashItems) - 1): ?>
                                                 <span class="is-size-7 mr-2 mb-2">+</span>
@@ -1256,7 +1292,7 @@ foreach ($accountsView as $index => $account) {
                                         <?php if (isset($account['baseCashBalance']) && $account['baseCashBalance'] !== null): ?>
                                             <div class="tags has-addons mr-2 mb-2">
                                                 <span class="tag is-dark"><?= htmlspecialchars($baseCurrency) ?></span>
-                                                <span class="tag is-link"><?= htmlspecialchars(number_format((float)$account['baseCashBalance'], 2)) ?></span>
+                                                <span class="tag is-link sensitive"><?= htmlspecialchars(number_format((float)$account['baseCashBalance'], 2)) ?></span>
                                             </div>
                                             <span class="is-size-7 mb-2">total</span>
                                         <?php endif; ?>
@@ -1282,13 +1318,21 @@ foreach ($accountsView as $index => $account) {
                                         <div class="column is-half">
                                             <p class="has-text-grey is-size-7">Daily P&amp;L</p>
                                             <p class="<?= $dpl !== null && $dpl < 0 ? 'has-text-danger' : 'has-text-success' ?> has-text-weight-semibold">
-                                                <?= $dpl === null ? 'n/a' : htmlspecialchars($baseCurrency . ' ' . number_format($dpl, 2)) ?>
+                                                <?php if ($dpl === null): ?>
+                                                    n/a
+                                                <?php else: ?>
+                                                    <span class="sensitive"><?= htmlspecialchars($baseCurrency . ' ' . number_format($dpl, 2)) ?></span>
+                                                <?php endif; ?>
                                             </p>
                                         </div>
                                         <div class="column is-half">
                                             <p class="has-text-grey is-size-7">Unrealized P&amp;L</p>
                                             <p class="<?= $upl !== null && $upl < 0 ? 'has-text-danger' : 'has-text-success' ?> has-text-weight-semibold">
-                                                <?= $upl === null ? 'n/a' : htmlspecialchars($baseCurrency . ' ' . number_format($upl, 2)) ?>
+                                                <?php if ($upl === null): ?>
+                                                    n/a
+                                                <?php else: ?>
+                                                    <span class="sensitive"><?= htmlspecialchars($baseCurrency . ' ' . number_format($upl, 2)) ?></span>
+                                                <?php endif; ?>
                                             </p>
                                         </div>
                                     </div>
@@ -1304,7 +1348,9 @@ foreach ($accountsView as $index => $account) {
                             </header>
                             <div class="card-content p-3">
                                 <?php if ($account['hasPerformanceData']): ?>
-                                    <canvas id="pnlChart-<?= $index ?>" height="160"></canvas>
+                                    <div class="chart-panel">
+                                        <canvas id="pnlChart-<?= $index ?>"></canvas>
+                                    </div>
                                 <?php else: ?>
                                     <p class="has-text-grey">No 30-day performance data available.</p>
                                 <?php endif; ?>
@@ -1412,21 +1458,40 @@ foreach ($accountsView as $index => $account) {
                                                         if ($realizedBase !== null) {
                                                             $realizedBaseClass = $realizedBase < 0 ? 'has-text-danger' : 'has-text-success';
                                                         }
-                                                        $unrealizedSuffix = $unrealizedPct === null ? '' : ' (' . ($unrealizedPct >= 0 ? '+' : '') . number_format($unrealizedPct, 2) . '%)';
-                                                        $realizedSuffix = $realizedPct === null ? '' : ' (' . ($realizedPct >= 0 ? '+' : '') . number_format($realizedPct, 2) . '%)';
-                                                        $unrealizedBaseSuffix = $unrealizedBasePct === null ? '' : ' (' . ($unrealizedBasePct >= 0 ? '+' : '') . number_format($unrealizedBasePct, 2) . '%)';
-                                                        $realizedBaseSuffix = $realizedBasePct === null ? '' : ' (' . ($realizedBasePct >= 0 ? '+' : '') . number_format($realizedBasePct, 2) . '%)';
+                                                        $unrealizedPctLabel = $unrealizedPct === null ? '' : ' (' . ($unrealizedPct >= 0 ? '+' : '') . number_format($unrealizedPct, 2) . '%)';
+                                                        $realizedPctLabel = $realizedPct === null ? '' : ' (' . ($realizedPct >= 0 ? '+' : '') . number_format($realizedPct, 2) . '%)';
+                                                        $unrealizedBasePctLabel = $unrealizedBasePct === null ? '' : ' (' . ($unrealizedBasePct >= 0 ? '+' : '') . number_format($unrealizedBasePct, 2) . '%)';
+                                                        $realizedBasePctLabel = $realizedBasePct === null ? '' : ' (' . ($realizedBasePct >= 0 ? '+' : '') . number_format($realizedBasePct, 2) . '%)';
                                                         $realizedIsZero = $realized !== null && abs($realized) < 0.000001;
                                                         $realizedBaseIsZero = $realizedBase !== null && abs($realizedBase) < 0.000001;
                                                     ?>
                                                     <tr>
                                                         <td><?= htmlspecialchars((string)$symbol) ?></td>
-                                                        <td class="has-text-right"><?= htmlspecialchars($position) ?></td>
+                                                        <td class="has-text-right">
+                                                            <?php if ($positionRaw === null): ?>
+                                                                n/a
+                                                            <?php else: ?>
+                                                                <span class="sensitive"><?= htmlspecialchars($position) ?></span>
+                                                            <?php endif; ?>
+                                                        </td>
                                                         <td class="has-text-right"><?= htmlspecialchars($mktPrice) ?></td>
-                                                        <td class="has-text-right"><?= htmlspecialchars($mktValue) ?></td>
+                                                        <td class="has-text-right">
+                                                            <?php if ($mktValue === 'n/a'): ?>
+                                                                n/a
+                                                            <?php else: ?>
+                                                                <span class="sensitive"><?= htmlspecialchars($mktValue) ?></span>
+                                                            <?php endif; ?>
+                                                        </td>
                                                         <td><?= htmlspecialchars((string)$currency) ?></td>
                                                         <td class="has-text-right <?= $unrealizedClass ?>">
-                                                            <?= $unrealized === null ? 'n/a' : htmlspecialchars(number_format($unrealized, 2) . $unrealizedSuffix) ?>
+                                                            <?php if ($unrealized === null): ?>
+                                                                n/a
+                                                            <?php else: ?>
+                                                                <span class="sensitive"><?= htmlspecialchars(number_format($unrealized, 2)) ?></span>
+                                                                <?php if ($unrealizedPctLabel !== ''): ?>
+                                                                    <span class="pnl-percent"><?= htmlspecialchars($unrealizedPctLabel) ?></span>
+                                                                <?php endif; ?>
+                                                            <?php endif; ?>
                                                         </td>
                                                         <td class="has-text-right <?= $realizedIsZero ? '' : $realizedClass ?>">
                                                             <?php if ($realized === null): ?>
@@ -1434,14 +1499,20 @@ foreach ($accountsView as $index => $account) {
                                                             <?php elseif ($realizedIsZero): ?>
                                                                 —
                                                             <?php else: ?>
-                                                                <?= htmlspecialchars(number_format($realized, 2) . $realizedSuffix) ?>
+                                                                <span class="sensitive"><?= htmlspecialchars(number_format($realized, 2)) ?></span>
+                                                                <?php if ($realizedPctLabel !== ''): ?>
+                                                                    <span class="pnl-percent"><?= htmlspecialchars($realizedPctLabel) ?></span>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
                                                         </td>
                                                         <td class="has-text-right <?= $unrealizedBaseClass ?>">
                                                             <?php if ($unrealizedBase === null): ?>
                                                                 n/a
                                                             <?php else: ?>
-                                                                <?= htmlspecialchars(trim($baseCurrency . ' ' . number_format($unrealizedBase, 2)) . $unrealizedBaseSuffix) ?>
+                                                                <span class="sensitive"><?= htmlspecialchars(trim($baseCurrency . ' ' . number_format($unrealizedBase, 2))) ?></span>
+                                                                <?php if ($unrealizedBasePctLabel !== ''): ?>
+                                                                    <span class="pnl-percent"><?= htmlspecialchars($unrealizedBasePctLabel) ?></span>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
                                                         </td>
                                                         <td class="has-text-right <?= $realizedBaseIsZero ? '' : $realizedBaseClass ?>">
@@ -1450,7 +1521,10 @@ foreach ($accountsView as $index => $account) {
                                                             <?php elseif ($realizedBaseIsZero): ?>
                                                                 —
                                                             <?php else: ?>
-                                                                <?= htmlspecialchars(trim($baseCurrency . ' ' . number_format($realizedBase, 2)) . $realizedBaseSuffix) ?>
+                                                                <span class="sensitive"><?= htmlspecialchars(trim($baseCurrency . ' ' . number_format($realizedBase, 2))) ?></span>
+                                                                <?php if ($realizedBasePctLabel !== ''): ?>
+                                                                    <span class="pnl-percent"><?= htmlspecialchars($realizedBasePctLabel) ?></span>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
                                                         </td>
                                                         <td><?= htmlspecialchars((string)$assetClass) ?></td>
@@ -1480,6 +1554,41 @@ foreach ($accountsView as $index => $account) {
 
 <script>
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;
+const privacyToggle = document.getElementById('privacyToggle');
+const ibkrCharts = [];
+const applyChartPrivacy = (chart, enabled) => {
+    if (!chart?.options?.scales?.y) {
+        return;
+    }
+    chart.options.scales.y.display = !enabled;
+    chart.update('none');
+};
+const setPrivacyBlur = (enabled) => {
+    document.body.classList.toggle('privacy-blur', enabled);
+    if (privacyToggle) {
+        privacyToggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        privacyToggle.setAttribute('data-active', enabled ? 'true' : 'false');
+    }
+    ibkrCharts.forEach((chart) => applyChartPrivacy(chart, enabled));
+    try {
+        localStorage.setItem('privacyBlur', enabled ? '1' : '0');
+    } catch (error) {
+        // Ignore storage errors.
+    }
+};
+
+if (privacyToggle) {
+    let initial = false;
+    try {
+        initial = localStorage.getItem('privacyBlur') === '1';
+    } catch (error) {
+        initial = false;
+    }
+    setPrivacyBlur(initial);
+    privacyToggle.addEventListener('click', () => {
+        setPrivacyBlur(!document.body.classList.contains('privacy-blur'));
+    });
+}
 
 chartConfigs.forEach((config) => {
     const ctx = document.getElementById(config.id);
@@ -1515,6 +1624,7 @@ chartConfigs.forEach((config) => {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             interaction: {
                 mode: 'index',
                 intersect: false
@@ -1553,6 +1663,10 @@ chartConfigs.forEach((config) => {
             }
         }
     });
+    ibkrCharts.push(chart);
+    if (document.body.classList.contains('privacy-blur')) {
+        applyChartPrivacy(chart, true);
+    }
 });
 </script>
 </body>
