@@ -17,6 +17,16 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 - `curl -k -X POST https://localhost:5050/v1/api/pa/performance -H 'Content-Type: application/json' -d '{"acctIds":["..."],"period":"30D"}'`: confirm performance data.
 - Site URL for testing: `http://127.0.0.1:5080/`
 
+## UI Features
+- Privacy toggle (👁️) in the top-right blurs sensitive amounts and account IDs; percentages and symbols remain visible.
+- When privacy is enabled, the chart Y-axis is hidden to widen the plot area.
+
+## Screenshot Workflow
+1. Start the dev server: `php -S 127.0.0.1:5080`.
+2. Open `http://127.0.0.1:5080/`.
+3. Click the 👁️ privacy toggle to blur sensitive data.
+4. Capture a full-page screenshot and save as `screenshot.jpg` in the repo root.
+
 ## Coding Style & Naming Conventions
 - Follow PSR-12 with 4-space indentation; add strict types where practical.
 - Classes use `PascalCase` in `ClassName.php`; functions/vars use `camelCase`; constants use `UPPER_SNAKE_CASE`.

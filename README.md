@@ -7,6 +7,7 @@ A lightweight PHP dashboard for Interactive Brokers that shows:
 - Cash balances
 - Intraday P&L (partitioned)
 - Gateway status
+- Privacy toggle to blur sensitive amounts for sharing
 
 The app depends on the IBKR Client Portal Gateway. For long-lived sessions, [ibeam](https://github.com/Voyz/ibeam) is recommended.
 
