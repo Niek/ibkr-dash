@@ -8,25 +8,16 @@ function loadEnv(string $path): array
         return [];
     }
 
-    $vars = [];
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    if ($lines === false) {
+    $vars = parse_ini_file($path, false, INI_SCANNER_RAW);
+    if (!is_array($vars)) {
         return [];
     }
 
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) {
+    foreach ($vars as $key => $value) {
+        if (!is_string($key)) {
             continue;
         }
-
-        $parts = explode('=', $line, 2);
-        if (count($parts) !== 2) {
-            continue;
-        }
-
-        $key = trim($parts[0]);
-        $value = trim($parts[1]);
+        $value = is_scalar($value) ? (string)$value : '';
         $vars[$key] = $value;
         if (getenv($key) === false) {
             putenv($key . '=' . $value);
@@ -46,24 +37,37 @@ function env(string $key, string $default = ''): string
     return $value;
 }
 
-function apiGet(string $path): array
+function apiRequest(string $method, string $path, ?array $payload = null): array
 {
     $baseUrl = rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
     $userAgent = 'IBKR-Pulse/1.0';
     $accept = 'application/json';
     $insecure = true;
+    $method = strtoupper($method);
+    $timeout = $method === 'POST' ? 15 : 10;
 
     $headers = [
         'Accept: ' . $accept,
         'User-Agent: ' . $userAgent,
     ];
 
+    $body = null;
+    if ($payload !== null) {
+        $headers[] = 'Content-Type: application/json';
+        $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    $http = [
+        'method' => $method,
+        'header' => implode("\r\n", $headers),
+        'timeout' => $timeout,
+    ];
+    if ($body !== null) {
+        $http['content'] = $body === false ? '{}' : $body;
+    }
+
     $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'header' => implode("\r\n", $headers),
-            'timeout' => 10,
-        ],
+        'http' => $http,
         'ssl' => [
             'verify_peer' => !$insecure,
             'verify_peer_name' => !$insecure,
@@ -71,7 +75,7 @@ function apiGet(string $path): array
     ]);
 
     $url = $baseUrl . $path;
-    $cacheKey = 'ibkr_http_get_' . sha1($url . '|' . $accept . '|' . $userAgent);
+    $cacheKey = 'ibkr_http_' . strtolower($method) . '_' . sha1($url . '|' . ($body ?? '') . '|' . $accept . '|' . $userAgent);
     if (function_exists('apcu_fetch')) {
         $cached = apcu_fetch($cacheKey, $success);
         if ($success && is_array($cached)) {
@@ -93,85 +97,6 @@ function apiGet(string $path): array
     }
 
     return $response;
-}
-
-function apiPost(string $path, array $payload): array
-{
-    $baseUrl = rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
-    $userAgent = 'IBKR-Pulse/1.0';
-    $accept = 'application/json';
-    $insecure = true;
-
-    $headers = [
-        'Accept: ' . $accept,
-        'User-Agent: ' . $userAgent,
-        'Content-Type: application/json',
-    ];
-
-    $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'POST',
-            'header' => implode("\r\n", $headers),
-            'content' => $body === false ? '{}' : $body,
-            'timeout' => 15,
-        ],
-        'ssl' => [
-            'verify_peer' => !$insecure,
-            'verify_peer_name' => !$insecure,
-        ],
-    ]);
-
-    $url = $baseUrl . $path;
-    $cacheKey = 'ibkr_http_post_' . sha1($url . '|' . ($body ?? '') . '|' . $accept . '|' . $userAgent);
-    if (function_exists('apcu_fetch')) {
-        $cached = apcu_fetch($cacheKey, $success);
-        if ($success && is_array($cached)) {
-            return $cached;
-        }
-    }
-    $raw = @file_get_contents($url, false, $context);
-    $error = $raw === false ? error_get_last() : null;
-
-    $response = [
-        'url' => $url,
-        'raw' => $raw,
-        'json' => $raw ? json_decode($raw, true) : null,
-        'error' => $error['message'] ?? null,
-    ];
-
-    if ($raw !== false && function_exists('apcu_store')) {
-        apcu_store($cacheKey, $response, 300);
-    }
-
-    return $response;
-}
-
-function extractAccountId($accountsData): string
-{
-    if (!is_array($accountsData)) {
-        return '';
-    }
-
-    if (isset($accountsData['accounts']) && is_array($accountsData['accounts'])) {
-        $list = $accountsData['accounts'];
-    } else {
-        $list = $accountsData;
-    }
-
-    foreach ($list as $item) {
-        if (is_string($item) && $item !== '') {
-            return $item;
-        }
-        if (is_array($item)) {
-            $candidate = $item['accountId'] ?? $item['id'] ?? $item['account'] ?? null;
-            if (is_string($candidate) && $candidate !== '') {
-                return $candidate;
-            }
-        }
-    }
-
-    return '';
 }
 
 function extractAccountIds($accountsData): array
@@ -958,7 +883,7 @@ function extractNetLiquidation($summaryData, $ledgerData): array
 
 loadEnv(__DIR__ . '/.env');
 
-$auth = apiGet('/iserver/auth/status');
+$auth = apiRequest('GET', '/iserver/auth/status');
 $authData = $auth['json'] ?? [];
 $authOk = is_array($authData) && ($authData['authenticated'] ?? false) === true;
 $connected = is_array($authData) && ($authData['connected'] ?? false) === true;
@@ -968,16 +893,16 @@ $gatewayHover = $auth['error']
     ? $auth['error']
     : 'Server: ' . $serverName . ' | Version: ' . $serverVersion;
 
-$partitionedPnl = apiGet('/iserver/account/pnl/partitioned');
+$partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned');
 $partitionedPnlData = $partitionedPnl['json'] ?? [];
 
 // Watchlists feature disabled (too slow on load).
-// $watchlists = apiGet('/iserver/watchlists');
+// $watchlists = apiRequest('GET', '/iserver/watchlists');
 // $watchlistsData = $watchlists['json'] ?? [];
 // $watchlistSummaries = extractWatchlistsSummary($watchlistsData);
 // $watchlistRows = [];
 // foreach ($watchlistSummaries as $summary) {
-//     $watchlist = apiGet('/iserver/watchlist?id=' . rawurlencode($summary['id']));
+//     $watchlist = apiRequest('GET', '/iserver/watchlist?id=' . rawurlencode($summary['id']));
 //     $watchlistData = $watchlist['json'] ?? [];
 //     $instruments = extractWatchlistInstruments($watchlistData);
 //     foreach ($instruments as $instrument) {
@@ -1003,12 +928,12 @@ $partitionedPnlData = $partitionedPnl['json'] ?? [];
 // }, $watchlistRows)));
 //
 // foreach ($watchlistConids as $conid) {
-//     $contract = apiGet('/iserver/contract/' . rawurlencode((string)$conid) . '/info');
+//     $contract = apiRequest('GET', '/iserver/contract/' . rawurlencode((string)$conid) . '/info');
 //     $contractData = $contract['json'] ?? [];
 //     if (is_array($contractData) && isset($contractData['currency']) && is_string($contractData['currency'])) {
 //         $watchlistCurrencies[$conid] = $contractData['currency'];
 //     }
-//     $history = apiGet('/iserver/marketdata/history?conid=' . rawurlencode((string)$conid) . '&period=1M&bar=1d');
+//     $history = apiRequest('GET', '/iserver/marketdata/history?conid=' . rawurlencode((string)$conid) . '&period=1M&bar=1d');
 //     $historyData = $history['json'] ?? [];
 //     $perf = computeHistoryPerformance($historyData);
 //     if ($perf !== null) {
@@ -1016,32 +941,32 @@ $partitionedPnlData = $partitionedPnl['json'] ?? [];
 //     }
 // }
 
-$accounts = apiGet('/iserver/accounts');
+$accounts = apiRequest('GET', '/iserver/accounts');
 $accountData = $accounts['json'] ?? [];
 $accountIds = extractAccountIds($accountData);
 
 $accountsView = [];
 foreach ($accountIds as $accountId) {
-    $summary = apiGet('/portfolio/' . rawurlencode($accountId) . '/summary');
+    $summary = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/summary');
     $summaryData = $summary['json'] ?? [];
-    $ledger = apiGet('/portfolio/' . rawurlencode($accountId) . '/ledger');
+    $ledger = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/ledger');
     $ledgerData = $ledger['json'] ?? [];
     $intradayPnl = extractPartitionedPnl($partitionedPnlData, $accountId);
-    $performance = apiPost('/pa/performance', [
+    $performance = apiRequest('POST', '/pa/performance', [
         'acctIds' => [$accountId],
         'period' => '30D',
     ]);
     $performanceData = $performance['json'] ?? [];
     $navSeries = extractNavSeries($performanceData);
     if (count($navSeries['labels']) === 0) {
-        $performance = apiPost('/pa/performance', [
+        $performance = apiRequest('POST', '/pa/performance', [
             'acctIds' => [$accountId],
             'period' => '1M',
         ]);
         $performanceData = $performance['json'] ?? [];
         $navSeries = extractNavSeries($performanceData);
     }
-    $positions = apiGet('/portfolio/' . rawurlencode($accountId) . '/positions');
+    $positions = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/positions');
     $positionsData = $positions['json'] ?? [];
 
     $netLiquidation = extractNetLiquidation($summaryData, $ledgerData);
@@ -1099,7 +1024,7 @@ foreach ($accountIds as $accountId) {
     $conids = array_values(array_unique($conids));
     if ($needsTransactions && count($conids) > 0) {
         foreach ($conids as $conid) {
-            $transactions = apiPost('/pa/transactions', [
+            $transactions = apiRequest('POST', '/pa/transactions', [
                 'acctIds' => [$accountId],
                 'conids' => [$conid],
                 'currency' => $chartCurrency,
