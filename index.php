@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/functions.inc.php';
 
+$pageStart = microtime(true);
+
 function extractAccountIds($accountsData): array
 {
     if (!is_array($accountsData)) {
@@ -1021,6 +1023,9 @@ foreach ($accountsView as $index => $account) {
             margin-left: 2px;
             white-space: nowrap;
         }
+        .footer {
+            --bulma-footer-padding: 1.25rem;
+        }
     </style>
 </head>
 <body>
@@ -1382,6 +1387,20 @@ foreach ($accountsView as $index => $account) {
         <?php endif; ?>
     </div>
 </section>
+
+<?php
+    $pageEnd = microtime(true);
+    $elapsedMs = ($pageEnd - $pageStart) * 1000;
+    $renderedAt = (new DateTimeImmutable())->format('Y-m-d H:i:s T');
+?>
+<footer class="footer">
+    <div class="content has-text-centered">
+        <p class="is-size-7 has-text-grey">
+            Rendered <?= htmlspecialchars($renderedAt) ?> · <?= htmlspecialchars(number_format($elapsedMs, 1)) ?> ms ·
+            <a href="https://github.com/Niek/ibkr-dash" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </p>
+    </div>
+</footer>
 
 <script>
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;
