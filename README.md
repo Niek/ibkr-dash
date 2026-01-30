@@ -54,6 +54,12 @@ Open:
 http://127.0.0.1:5080/
 ```
 
+## Docker
+
+```bash
+docker run --rm -e GATEWAY_BASE_URL=https://host.docker.internal:5050/v1/api -p 5080:5080 --pull=always ghcr.io/niek/ibkr-dash:latest
+```
+
 ## Telegram Report (optional)
 
 `telegram.php` sends a daily summary (yesterday’s performance, CET/CEST) to a Telegram chat.

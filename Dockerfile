@@ -7,6 +7,7 @@ RUN apk add --no-cache \
         ${PHP_PKG}-cli \
         ${PHP_PKG}-opcache \
         ${PHP_PKG}-pecl-apcu \
+    && ln -sf /usr/bin/${PHP_PKG} /usr/bin/php \
     && echo "apc.enable_cli=1" > /etc/${PHP_PKG}/conf.d/50_apcu.ini
 
 WORKDIR /app
