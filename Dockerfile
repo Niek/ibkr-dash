@@ -1,12 +1,13 @@
-FROM php:8.2-cli
+FROM alpine:latest
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends $PHPIZE_DEPS \
-    && pecl install apcu \
-    && docker-php-ext-enable apcu \
-    && echo "apc.enable_cli=1" > /usr/local/etc/php/conf.d/apcu-cli.ini \
-    && apt-get purge -y --auto-remove $PHPIZE_DEPS \
-    && rm -rf /var/lib/apt/lists/*
+ARG PHP_PKG=php83
+
+RUN apk add --no-cache \
+        ${PHP_PKG} \
+        ${PHP_PKG}-cli \
+        ${PHP_PKG}-opcache \
+        ${PHP_PKG}-pecl-apcu \
+    && echo "apc.enable_cli=1" > /etc/${PHP_PKG}/conf.d/50_apcu.ini
 
 WORKDIR /app
 COPY . /app

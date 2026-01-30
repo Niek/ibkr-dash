@@ -37,6 +37,10 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha
+          labels: |
+            org.opencontainers.image.title=ibkr-dash
+            org.opencontainers.image.description=Lightweight PHP dashboard for Interactive Brokers
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
