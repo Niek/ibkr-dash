@@ -25,8 +25,8 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 1. Start the dev server: `php -S 127.0.0.1:5080`.
 2. Open `http://127.0.0.1:5080/`.
 3. Click the 👁️ privacy toggle to blur sensitive data.
-4. Capture a full-page screenshot and save as `screenshot.jpg` in the repo root.
-5. Resize the screenshot to max 800px width: `gm convert screenshot.jpg -resize 800x\> screenshot.jpg`.
+4. Capture a full-page screenshot and save as `.github/screenshot.jpg`.
+5. Resize the screenshot to max 800px width: `gm convert .github/screenshot.jpg -resize 800x\> .github/screenshot.jpg`.
 
 ## Coding Style & Naming Conventions
 - Follow PSR-12 with 4-space indentation; add strict types where practical.

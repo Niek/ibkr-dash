@@ -13,7 +13,7 @@ The app depends on the IBKR Client Portal Gateway. For long-lived sessions, [ibe
 
 ## Screenshot
 
-![Dashboard with privacy blur enabled](screenshot.jpg)
+![Dashboard with privacy blur enabled](.github/screenshot.jpg)
 
 ## Requirements
 
@@ -33,6 +33,13 @@ cp .env.example .env
 
 ```
 GATEWAY_BASE_URL=https://localhost:5050/v1/api
+```
+
+Optional dashboard basic auth:
+
+```
+USERNAME=...
+PASSWORD=...
 ```
 
 ## Run

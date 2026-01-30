@@ -787,6 +787,7 @@ function extractNetLiquidation($summaryData, $ledgerData): array
 }
 
 loadEnv(__DIR__ . '/.env');
+requireBasicAuthIfConfigured();
 
 $auth = apiRequest('GET', '/iserver/auth/status');
 $authData = $auth['json'] ?? [];

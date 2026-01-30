@@ -37,6 +37,30 @@ function env(string $key, string $default = ''): string
     return $value;
 }
 
+function requireBasicAuthIfConfigured(): void
+{
+    if (php_sapi_name() === 'cli') {
+        return;
+    }
+
+    $username = env('USERNAME');
+    $password = env('PASSWORD');
+    if ($username === '' || $password === '') {
+        return;
+    }
+
+    header('Cache-Control: no-cache, must-revalidate, max-age=0');
+
+    $providedUser = $_SERVER['PHP_AUTH_USER'] ?? null;
+    $providedPass = $_SERVER['PHP_AUTH_PW'] ?? null;
+
+    if ($providedUser !== $username || $providedPass !== $password) {
+        header('HTTP/1.1 401 Authorization Required');
+        header('WWW-Authenticate: Basic realm="Access denied"');
+        exit;
+    }
+}
+
 function apiRequest(string $method, string $path, ?array $payload = null): array
 {
     $baseUrl = rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
