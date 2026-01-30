@@ -405,7 +405,7 @@ $ytdReturn = extractYtdReturn($ytd['json'] ?? []);
 
 $last7Returns = [];
 $returnStart = max(1, $lastIndex - 6);
-for ($i = $returnStart; $i <= $lastIndex; $i++) {
+for ($i = $lastIndex; $i >= $returnStart; $i--) {
     $prev = $values[$i - 1] ?? null;
     $curr = $values[$i] ?? null;
     if (!is_numeric($prev) || !is_numeric($curr) || (float)$prev == 0.0) {
