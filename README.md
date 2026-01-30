@@ -47,6 +47,21 @@ Open:
 http://127.0.0.1:5080/
 ```
 
+## Telegram Report (optional)
+
+`telegram.php` sends a daily summary (yesterday’s performance, CET/CEST) to a Telegram chat.
+
+```
+TELEGRAM_TOKEN=...
+TELEGRAM_CHAT=...
+```
+
+Run:
+
+```bash
+php telegram.php
+```
+
 ## Notes
 
 - API calls are cached for 5 minutes when APCu is available.
