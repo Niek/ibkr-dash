@@ -201,32 +201,22 @@ function extractFxRateToBase($ledgerData, string $currency, ?string $baseCurrenc
         return null;
     }
 
-    $preferredKeys = [
-        'fxRateToBase',
-        'fxrateToBase',
-        'fxRateToBaseCurrency',
-        'fxRate',
-        'fxrate',
-        'exchangeRate',
-        'exchangerate',
-    ];
-
-    foreach ($preferredKeys as $key) {
+    foreach (['fxRateToBase', 'fxRate', 'exchangeRate'] as $key) {
         if (array_key_exists($key, $entry) && is_numeric($entry[$key])) {
             return (float)$entry[$key];
         }
     }
 
-    foreach ($entry as $key => $value) {
-        if (!is_numeric($value)) {
-            continue;
-        }
-        $lower = strtolower((string)$key);
-        if (str_contains($lower, 'fxrate') || str_contains($lower, 'exchange')) {
-            return (float)$value;
+    return null;
+}
+
+function extractCashBalanceFromEntry(array $entry): ?float
+{
+    foreach (['cashbalance', 'cashBalance', 'cash', 'totalcashvalue', 'totalcash', 'availablecash'] as $key) {
+        if (array_key_exists($key, $entry) && is_numeric($entry[$key])) {
+            return (float)$entry[$key];
         }
     }
-
     return null;
 }
 
@@ -235,78 +225,28 @@ function extractCashBalances($ledgerData): array
     if (!is_array($ledgerData)) {
         return [];
     }
-
     $balances = [];
-    $keys = [
-        'cashbalance',
-        'cashBalance',
-        'cash',
-        'totalcashvalue',
-        'totalcash',
-        'availablecash',
-    ];
-
     foreach ($ledgerData as $currency => $entry) {
         if (!is_array($entry) || !is_string($currency)) {
             continue;
         }
-        $value = null;
-        foreach ($keys as $key) {
-            if (array_key_exists($key, $entry) && is_numeric($entry[$key])) {
-                $value = (float)$entry[$key];
-                break;
-            }
-        }
+        $value = extractCashBalanceFromEntry($entry);
         if ($value !== null) {
-            $balances[] = [
-                'currency' => $currency,
-                'value' => $value,
-            ];
+            $balances[] = ['currency' => $currency, 'value' => $value];
         }
     }
-
     return $balances;
 }
 
 function extractBaseCashBalance($ledgerData): ?float
 {
-    if (!is_array($ledgerData)) {
-        return null;
-    }
-
-    $baseEntry = $ledgerData['BASE'] ?? null;
-    if (!is_array($baseEntry)) {
-        return null;
-    }
-
-    $keys = [
-        'cashbalance',
-        'cashBalance',
-        'cash',
-        'totalcashvalue',
-        'totalcash',
-        'availablecash',
-    ];
-
-    foreach ($keys as $key) {
-        if (array_key_exists($key, $baseEntry) && is_numeric($baseEntry[$key])) {
-            return (float)$baseEntry[$key];
-        }
-    }
-
-    return null;
+    $baseEntry = is_array($ledgerData) ? ($ledgerData['BASE'] ?? null) : null;
+    return is_array($baseEntry) ? extractCashBalanceFromEntry($baseEntry) : null;
 }
 
 function extractPartitionedPnl($pnlData, string $accountId): array
 {
-    $result = [
-        'dpl' => null,
-        'upl' => null,
-        'nl' => null,
-        'el' => null,
-        'mv' => null,
-        'key' => null,
-    ];
+    $result = ['dpl' => null, 'upl' => null];
 
     if (!is_array($pnlData) || !isset($pnlData['upnl']) || !is_array($pnlData['upnl'])) {
         return $result;
@@ -335,82 +275,13 @@ function extractPartitionedPnl($pnlData, string $accountId): array
     }
 
     $data = $candidates[$selectedKey] ?? [];
-    $result['key'] = $selectedKey;
-    foreach (['dpl', 'upl', 'nl', 'el', 'mv'] as $field) {
+    foreach (['dpl', 'upl'] as $field) {
         if (array_key_exists($field, $data) && is_numeric($data[$field])) {
             $result[$field] = (float)$data[$field];
         }
     }
 
     return $result;
-}
-
-function extractWatchlistsSummary($watchlistsData): array
-{
-    if (!is_array($watchlistsData)) {
-        return [];
-    }
-
-    $userLists = $watchlistsData['data']['user_lists'] ?? null;
-    if (!is_array($userLists)) {
-        return [];
-    }
-
-    $lists = [];
-    foreach ($userLists as $list) {
-        if (!is_array($list)) {
-            continue;
-        }
-        $id = $list['id'] ?? null;
-        $name = $list['name'] ?? null;
-        if ($id === null || $name === null) {
-            continue;
-        }
-        $lists[] = [
-            'id' => (string)$id,
-            'name' => (string)$name,
-        ];
-    }
-
-    return $lists;
-}
-
-function extractWatchlistInstruments($watchlistData): array
-{
-    if (!is_array($watchlistData)) {
-        return [];
-    }
-    $instruments = $watchlistData['instruments'] ?? null;
-    if (!is_array($instruments)) {
-        return [];
-    }
-    return array_values(array_filter($instruments, 'is_array'));
-}
-
-function computeHistoryPerformance($historyData): ?float
-{
-    if (!is_array($historyData)) {
-        return null;
-    }
-    $bars = $historyData['data'] ?? null;
-    if (!is_array($bars) || count($bars) < 2) {
-        return null;
-    }
-    $first = null;
-    $last = null;
-    foreach ($bars as $bar) {
-        if (!is_array($bar) || !isset($bar['c']) || !is_numeric($bar['c'])) {
-            continue;
-        }
-        if ($first === null) {
-            $first = (float)$bar['c'];
-        }
-        $last = (float)$bar['c'];
-    }
-    if ($first === null || $last === null || $first == 0.0) {
-        return null;
-    }
-    return (($last - $first) / $first) * 100;
 }
 
 function extractTransactionsList($transactionsData): array
@@ -508,43 +379,10 @@ function extractTransactionAmountBase(array $tx, string $baseCurrency): ?float
         return abs((float)$tx['amt']);
     }
 
-    $baseKeys = [
-        'amountInBase',
-        'amountBase',
-        'baseAmount',
-        'baseValue',
-        'baseCurrencyAmount',
-        'netBase',
-    ];
-
-    foreach ($baseKeys as $key) {
-        if (array_key_exists($key, $tx) && is_numeric($tx[$key])) {
-            return abs((float)$tx[$key]);
-        }
-    }
-
-    $amountKeys = [
-        'amount',
-        'netAmount',
-        'proceeds',
-        'tradeMoney',
-        'tradeAmount',
-        'netCash',
-        'total',
-        'value',
-        'cost',
-    ];
-
-    foreach ($amountKeys as $key) {
-        if (array_key_exists($key, $tx) && is_numeric($tx[$key])) {
-            return abs((float)$tx[$key]);
-        }
-    }
-
-    $price = $tx['tradePrice'] ?? $tx['price'] ?? $tx['avgPrice'] ?? null;
+    $price = extractTransactionPrice($tx);
     $qty = extractTransactionQuantity($tx);
-    if (is_numeric($price) && $qty !== null) {
-        $amount = abs((float)$price * $qty);
+    if ($price !== null && $qty !== null) {
+        $amount = abs($price * $qty);
         $txCurrency = extractTransactionCurrency($tx);
         $fxRate = extractTransactionFxRate($tx);
         if ($txCurrency !== null && $baseCurrency !== '' && $txCurrency !== $baseCurrency && $fxRate !== null) {
@@ -646,69 +484,6 @@ function computeWeightedFxRate(array $txs): ?float
     return $weighted / $totalWeight;
 }
 
-function computeBasePnlFromTransactions(array $txs, ?float $currentQty, ?float $currentValueBase): array
-{
-    $qty = 0.0;
-    $cost = 0.0;
-    $realized = 0.0;
-    $costSold = 0.0;
-
-    foreach ($txs as $tx) {
-        $txQty = (float)($tx['qty'] ?? 0.0);
-        $amountBase = (float)($tx['amountBase'] ?? 0.0);
-        if ($amountBase == 0.0) {
-            continue;
-        }
-
-        if ($txQty > 0) {
-            $cost += $amountBase;
-            $qty += $txQty;
-            continue;
-        }
-
-        $sellQty = abs($txQty);
-        if ($qty <= 0.0) {
-            continue;
-        }
-        $avgCost = $cost / $qty;
-        $effectiveQty = min($sellQty, $qty);
-        $costRemoved = $avgCost * $effectiveQty;
-        $realized += $amountBase - $costRemoved;
-        $costSold += $costRemoved;
-        $cost -= $costRemoved;
-        $qty -= $effectiveQty;
-    }
-
-    if ($currentQty !== null && $currentQty > 0.0) {
-        if ($qty > 0.0 && abs($currentQty - $qty) > 0.0001) {
-            $scale = $currentQty / $qty;
-            $cost *= $scale;
-        } elseif ($qty == 0.0 && $cost > 0.0) {
-            $qty = $currentQty;
-        }
-    }
-
-    $unrealized = null;
-    $unrealizedPct = null;
-    if ($currentValueBase !== null && $cost > 0.0) {
-        $unrealized = $currentValueBase - $cost;
-        $unrealizedPct = ($unrealized / $cost) * 100;
-    }
-
-    $realizedPct = null;
-    if ($costSold > 0.0) {
-        $realizedPct = ($realized / $costSold) * 100;
-    }
-
-    return [
-        'costBasisBase' => $cost > 0.0 ? $cost : null,
-        'unrealizedBase' => $unrealized,
-        'unrealizedPct' => $unrealizedPct,
-        'realizedBase' => $realized !== 0.0 ? $realized : 0.0,
-        'realizedPct' => $realizedPct,
-    ];
-}
-
 function extractNetLiquidation($summaryData, $ledgerData): array
 {
     $keyCandidates = [
@@ -804,51 +579,6 @@ $gatewayHover = $auth['error']
 $partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned');
 $partitionedPnlData = $partitionedPnl['json'] ?? [];
 
-// Watchlists feature disabled (too slow on load).
-// $watchlists = apiRequest('GET', '/iserver/watchlists');
-// $watchlistsData = $watchlists['json'] ?? [];
-// $watchlistSummaries = extractWatchlistsSummary($watchlistsData);
-// $watchlistRows = [];
-// foreach ($watchlistSummaries as $summary) {
-//     $watchlist = apiRequest('GET', '/iserver/watchlist?id=' . rawurlencode($summary['id']));
-//     $watchlistData = $watchlist['json'] ?? [];
-//     $instruments = extractWatchlistInstruments($watchlistData);
-//     foreach ($instruments as $instrument) {
-//         $conid = $instrument['conid'] ?? $instrument['C'] ?? null;
-//         if ($conid === null) {
-//             continue;
-//         }
-//         $symbol = $instrument['ticker'] ?? $instrument['name'] ?? $instrument['fullName'] ?? 'n/a';
-//         $assetClass = $instrument['assetClass'] ?? $instrument['ST'] ?? 'n/a';
-//         $watchlistRows[] = [
-//             'watchlist' => $summary['name'],
-//             'conid' => (int)$conid,
-//             'symbol' => (string)$symbol,
-//             'assetClass' => (string)$assetClass,
-//         ];
-//     }
-// }
-//
-// $watchlistCurrencies = [];
-// $watchlistPerf = [];
-// $watchlistConids = array_values(array_unique(array_map(function (array $row): int {
-//     return (int)$row['conid'];
-// }, $watchlistRows)));
-//
-// foreach ($watchlistConids as $conid) {
-//     $contract = apiRequest('GET', '/iserver/contract/' . rawurlencode((string)$conid) . '/info');
-//     $contractData = $contract['json'] ?? [];
-//     if (is_array($contractData) && isset($contractData['currency']) && is_string($contractData['currency'])) {
-//         $watchlistCurrencies[$conid] = $contractData['currency'];
-//     }
-//     $history = apiRequest('GET', '/iserver/marketdata/history?conid=' . rawurlencode((string)$conid) . '&period=1M&bar=1d');
-//     $historyData = $history['json'] ?? [];
-//     $perf = computeHistoryPerformance($historyData);
-//     if ($perf !== null) {
-//         $watchlistPerf[$conid] = $perf;
-//     }
-// }
-
 $accounts = apiRequest('GET', '/iserver/accounts');
 $accountData = $accounts['json'] ?? [];
 $accountIds = extractAccountIds($accountData);
@@ -916,35 +646,27 @@ foreach ($accountIds as $accountId) {
         }
     }
 
-    $transactionsData = [];
     $transactionsByConid = [];
-    $needsTransactions = false;
     $conids = [];
     foreach ($positionsRows as $row) {
         $rowCurrency = (string)($row['currency'] ?? '');
-        if ($rowCurrency !== '' && $rowCurrency !== $chartCurrency) {
-            $needsTransactions = true;
-            if (isset($row['conid']) && is_numeric($row['conid'])) {
-                $conids[] = (int)$row['conid'];
-            }
+        if ($rowCurrency !== '' && $rowCurrency !== $chartCurrency && is_numeric($row['conid'] ?? null)) {
+            $conids[(int)$row['conid']] = true;
         }
     }
-    $conids = array_values(array_unique($conids));
-    if ($needsTransactions && count($conids) > 0) {
-        foreach ($conids as $conid) {
-            $transactions = apiRequest('POST', '/pa/transactions', [
-                'acctIds' => [$accountId],
-                'conids' => [$conid],
-                'currency' => $chartCurrency,
-                'days' => (int)env('IBKR_TXN_DAYS', '3650'),
-            ]);
-            $transactionsData = $transactions['json'] ?? [];
-            $grouped = groupTransactionsByConid($transactionsData, $chartCurrency);
-            if (isset($grouped[$conid])) {
-                $transactionsByConid[$conid] = $grouped[$conid];
-            }
+    foreach (array_keys($conids) as $conid) {
+        $transactions = apiRequest('POST', '/pa/transactions', [
+            'acctIds' => [$accountId],
+            'conids' => [$conid],
+            'currency' => $chartCurrency,
+            'days' => (int)env('IBKR_TXN_DAYS', '3650'),
+        ]);
+        $grouped = groupTransactionsByConid($transactions['json'] ?? [], $chartCurrency);
+        if (isset($grouped[$conid])) {
+            $transactionsByConid[$conid] = $grouped[$conid];
         }
     }
+
 
     usort($positionsRows, function (array $a, array $b): int {
         $aValue = is_numeric($a['mktValue'] ?? null) ? (float)$a['mktValue'] : 0.0;
@@ -954,10 +676,7 @@ foreach ($accountIds as $accountId) {
 
     $accountsView[] = [
         'id' => $accountId,
-        'summary' => $summary,
-        'ledger' => $ledger,
         'ledgerData' => $ledgerData,
-        'performance' => $performance,
         'netLiquidationDisplay' => $netLiquidationDisplay,
         'netLiquidationSource' => $netLiquidationSource,
         'cashBalances' => $cashBalances,
@@ -1139,7 +858,7 @@ foreach ($accountsView as $index => $account) {
                         <?php endif; ?>
                         <div class="card mt-3">
                             <header class="card-header">
-                                <p class="card-header-title is-size-6">Intraday P&amp;L</p>
+                                <p class="card-header-title is-size-6">P&amp;L</p>
                             </header>
                             <div class="card-content">
                                 <?php
@@ -1149,7 +868,7 @@ foreach ($accountsView as $index => $account) {
                                     $baseCurrency = $account['chartCurrency'] ?? 'BASE';
                                 ?>
                                 <?php if ($dpl === null && $upl === null): ?>
-                                    <p class="has-text-grey is-size-7">No intraday P&amp;L data available.</p>
+                                    <p class="has-text-grey is-size-7">No P&amp;L data available.</p>
                                 <?php else: ?>
                                     <div class="columns is-mobile is-multiline">
                                         <div class="column is-half">
@@ -1376,7 +1095,6 @@ foreach ($accountsView as $index => $account) {
                     </div>
                 </div>
 
-                <?php /* Watchlists table disabled (slow to load). */ ?>
             <?php endforeach; ?>
         <?php endif; ?>
 
