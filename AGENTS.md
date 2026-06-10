@@ -18,13 +18,13 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 - Site URL for testing: `http://127.0.0.1:5080/`
 
 ## UI Features
-- Privacy toggle (👁️) in the top-right blurs sensitive amounts and account IDs; percentages and symbols remain visible.
+- Privacy toggle (eye icon button) in the top-right blurs sensitive amounts and account IDs; percentages and symbols remain visible.
 - When privacy is enabled, the chart Y-axis is hidden to widen the plot area.
 
 ## Screenshot Workflow
 1. Start the dev server: `php -S 127.0.0.1:5080`.
 2. Open `http://127.0.0.1:5080/`.
-3. Click the 👁️ privacy toggle to blur sensitive data.
+3. Click the eye-icon privacy toggle to blur sensitive data.
 4. Capture a full-page screenshot and save as `.github/screenshot.jpg`.
 5. Resize the screenshot to max 800px width: `gm convert .github/screenshot.jpg -resize 800x\> .github/screenshot.jpg`.
 
