@@ -707,10 +707,12 @@ foreach ($accountsView as $index => $account) {
 
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0d15">
     <title>IBKR Dashboard</title>
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y+mAAAAllBMVEUiIiIhISEgICAfHx8eHh4dHR0cHBwbGxsaGhoZGRkYGBgVHBwqHB0XFxcAHR1vHSA6HBwNHBxaHR+kHiMAGhkWFhYzHB3ZICdGHB3MICa6HyTkIShjHR/hICgVFRWGHiJ8HSAAGRjTICdQHR+VHiIUFBSrHiSxHyMAFRXAHyV0Gx4TExMvFhcAExMSEhKbHSHFHyUREREv0J8IAAABR0lEQVR4AV3SBRaDMBAEUOq4uzuh3vtfrrsJSyUt+t8MQSQcGxjb7Xa32+8Ph+PxdJJlWVFVVSAZoqYjKoDGl4mgadnyYgaVkjmu56MpYMFfqRZGsUbB4LdUOySpv1rwW2qmWe4IQ6SgMK9IvoKlRAZoVkVRNx9DpFLTKqL2pJBxpFKni6Ki97+Cg0SlWtgC6tqXAYpS7ZiAjf5qhPyCUwHoOk3TMAoC8lK/B4tm36nS9MwWu0jLTD0MWs2Im57x0gsimMCkibMIx3XgBrgnLKqmxnK49G1AvAOCHXnSbjpKogFyO/qAiWcwPuf+Juwb0/TBgv45V0yUAnI7ASZTOveMsRsTs0HkhphOafqsGNwi2WvFaASck/pWUikgN9kfnxyfiXVbgy+Jm9x404JtfiMjdKqH543C7TuaQPF9M9YwnCqMOwVfb9LjO/4TNVnRAAAAAElFTkSuQmCC">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1/css/bulma.min.css">
@@ -719,209 +721,251 @@ foreach ($accountsView as $index => $account) {
         :root {
             --privacy-blur: 6px;
         }
-        .sensitive {
-            transition: filter 150ms ease;
+        html[data-theme="dark"] {
+            --bulma-scheme-h: 224;
+            --bulma-scheme-s: 24%;
+            --bulma-table-cell-heading-color: var(--bulma-text-weak);
+            --bulma-footer-padding: 1rem;
+        }
+        body {
+            background-image:
+                radial-gradient(1100px 500px at 85% -10%, hsla(var(--bulma-link-h), var(--bulma-link-s), 60%, 0.08), transparent 60%),
+                radial-gradient(900px 450px at 5% -15%, hsla(var(--bulma-primary-h), var(--bulma-primary-s), 60%, 0.06), transparent 60%);
+            background-attachment: fixed;
+        }
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background-color: hsla(var(--bulma-scheme-h), var(--bulma-scheme-s), var(--bulma-scheme-main-l), 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--bulma-border-weak);
+        }
+        .brand-mark {
+            border-radius: 0.5rem;
+            background: linear-gradient(135deg, var(--bulma-link), var(--bulma-primary));
+        }
+        .card {
+            border: 1px solid var(--bulma-border-weak);
+        }
+        .table {
+            font-variant-numeric: tabular-nums;
+        }
+        .dot {
+            display: inline-block;
+            width: 0.5em;
+            height: 0.5em;
+            border-radius: 9999px;
+            background: currentColor;
+        }
+        .has-text-success-bold .dot {
+            animation: pulse 2.4s ease-out infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 hsla(var(--bulma-success-h), var(--bulma-success-s), var(--bulma-success-l), 0.4); }
+            70%, 100% { box-shadow: 0 0 0 0.4em transparent; }
         }
         .chart-panel {
             position: relative;
-            height: 380px;
+            height: 320px;
         }
         .chart-panel canvas {
             width: 100% !important;
-            height: 380px !important;
+            height: 100% !important;
+        }
+        .sensitive {
+            transition: filter 150ms ease;
         }
         body.privacy-blur .sensitive {
             filter: blur(var(--privacy-blur));
         }
-        #privacyToggle {
-            border: 1px solid rgba(255, 255, 255, 0.4);
-        }
-        #privacyToggle[data-active="true"] {
-            background: rgba(255, 255, 255, 0.12);
-        }
         .pnl-percent {
             margin-left: 2px;
             white-space: nowrap;
+            opacity: 0.75;
         }
-        .footer {
-            --bulma-footer-padding: 1.25rem;
+        #privacyToggle .eye-closed,
+        #privacyToggle.is-link .eye-open {
+            display: none;
+        }
+        #privacyToggle.is-link .eye-closed {
+            display: inline;
         }
     </style>
 </head>
 <body>
-<nav class="navbar is-dark" role="navigation" aria-label="main navigation">
-    <div class="navbar-brand">
-        <span class="navbar-item has-text-weight-bold">IBKR Dash</span>
-    </div>
-    <div class="navbar-menu is-active">
-        <div class="navbar-end">
-            <div class="navbar-item">
-                <button class="button is-dark is-inverted is-small" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">👁️</button>
+<nav class="navbar" role="navigation" aria-label="main navigation">
+    <div class="container">
+        <div class="navbar-brand">
+            <span class="navbar-item">
+                <span class="icon brand-mark mr-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 17l5-6 4 4 6-9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span class="has-text-weight-bold">IBKR&nbsp;<span class="has-text-link">Dash</span></span>
+            </span>
+        </div>
+        <div class="navbar-menu is-active">
+            <div class="navbar-end">
+                <div class="navbar-item" title="<?= htmlspecialchars($gatewayHover) ?>">
+                    <?php if ($auth['error']): ?>
+                        <span class="tag is-rounded has-background-danger-soft has-text-danger-bold"><span class="dot mr-1"></span>Gateway Error</span>
+                    <?php else: ?>
+                        <span class="tag is-rounded has-background-<?= $authOk ? 'success' : 'warning' ?>-soft has-text-<?= $authOk ? 'success' : 'warning' ?>-bold mr-2"><span class="dot mr-1"></span>Authenticated</span>
+                        <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span>Connected</span>
+                    <?php endif; ?>
+                </div>
+                <div class="navbar-item">
+                    <button class="button" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">
+                        <span class="icon">
+                        <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                        </span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </nav>
 
-<section class="hero is-info is-light is-small">
-    <div class="hero-body py-4 has-text-dark">
-        <div class="container">
-            <div class="level">
-                <div class="level-left">
-                    <div>
-                        <p class="title">Interactive Brokers Dashboard</p>
-                        <p class="subtitle is-6 has-text-grey-dark">Gateway: <?= htmlspecialchars($auth['url']) ?></p>
-                    </div>
-                </div>
-                <div class="level-right">
-                    <div class="level-item">
-                        <?php if ($auth['error']): ?>
-                            <span class="tag is-danger" title="<?= htmlspecialchars($gatewayHover) ?>">Gateway Error</span>
-                        <?php else: ?>
-                            <div class="tags" title="<?= htmlspecialchars($gatewayHover) ?>">
-                                <span class="tag <?= $authOk ? 'is-link' : 'is-warning' ?>">Authenticated</span>
-                                <span class="tag <?= $connected ? 'is-link' : 'is-warning' ?>">Connected</span>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="section">
+<section class="section py-5">
     <div class="container">
+        <div class="mb-5">
+            <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Portfolio Overview</p>
+            <h1 class="title is-4 mb-1">Interactive Brokers Dashboard</h1>
+            <p class="is-size-7 has-text-grey">Gateway: <?= htmlspecialchars($auth['url']) ?></p>
+        </div>
         <?php if (count($accountsView) === 0): ?>
             <div class="notification is-warning is-light">
                 No accounts returned from the gateway. Check your session and permissions.
             </div>
         <?php else: ?>
             <?php foreach ($accountsView as $index => $account): ?>
+                <?php
+                    $pnl = $account['intradayPnl'] ?? [];
+                    $dpl = $pnl['dpl'] ?? null;
+                    $upl = $pnl['upl'] ?? null;
+                    $baseCurrency = $account['chartCurrency'] ?? 'BASE';
+                    $cashItems = [];
+                    foreach ($account['cashBalances'] as $balance) {
+                        $currency = (string)$balance['currency'];
+                        if ($currency === 'BASE') {
+                            continue;
+                        }
+                        $cashItems[] = [
+                            'currency' => $currency,
+                            'value' => (float)$balance['value'],
+                        ];
+                    }
+                ?>
                 <?php if ($index > 0): ?>
                     <hr class="my-5">
                 <?php endif; ?>
-                <div class="columns is-variable is-6">
-                    <div class="column is-4">
-                        <div class="card">
-                            <header class="card-header">
-                                <p class="card-header-title is-size-6">Account Snapshot</p>
-                            </header>
-                            <div class="card-content">
-                                <p class="has-text-grey is-size-7">Account: <span class="sensitive"><?= htmlspecialchars($account['id']) ?></span></p>
-                                <p class="title is-4"><span class="sensitive"><?= htmlspecialchars($account['netLiquidationDisplay']) ?></span></p>
-                                <p class="has-text-grey is-size-7">Net liquidation<?= $account['netLiquidationSource'] ? ' (' . htmlspecialchars($account['netLiquidationSource']) . ')' : '' ?></p>
-                            </div>
-                        </div>
-                        <?php if (!empty($account['cashBalances'])): ?>
-                            <div class="card mt-3">
-                                <header class="card-header">
-                                    <p class="card-header-title is-size-6">Cash balances</p>
-                                </header>
-                                <div class="card-content">
-                                    <?php
-                                        $baseCurrency = $account['chartCurrency'] ?? 'BASE';
-                                        $cashItems = [];
-                                        foreach ($account['cashBalances'] as $balance) {
-                                            $currency = (string)$balance['currency'];
-                                            if ($currency === 'BASE') {
-                                                continue;
-                                            }
-                                            $cashItems[] = [
-                                                'currency' => $currency,
-                                                'value' => (float)$balance['value'],
-                                            ];
-                                        }
-                                    ?>
-                                    <div class="tags are-small">
-                                        <?php foreach ($cashItems as $cashIndex => $balance): ?>
-                                            <div class="tags has-addons mr-2 mb-2">
-                                                <span class="tag is-dark"><?= htmlspecialchars($balance['currency']) ?></span>
-                                                <span class="tag is-link sensitive"><?= htmlspecialchars(number_format((float)$balance['value'], 2)) ?></span>
-                                            </div>
-                                            <?php if ($cashIndex < count($cashItems) - 1): ?>
-                                                <span class="is-size-7 mr-2 mb-2">+</span>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                        <?php if (!empty($cashItems)): ?>
-                                            <span class="is-size-7 mr-2 mb-2">=~</span>
-                                        <?php endif; ?>
-                                        <?php if (isset($account['baseCashBalance']) && $account['baseCashBalance'] !== null): ?>
-                                            <div class="tags has-addons mr-2 mb-2">
-                                                <span class="tag is-dark"><?= htmlspecialchars($baseCurrency) ?></span>
-                                                <span class="tag is-link sensitive"><?= htmlspecialchars(number_format((float)$account['baseCashBalance'], 2)) ?></span>
-                                            </div>
-                                            <span class="is-size-7 mb-2">total</span>
-                                        <?php endif; ?>
-                                    </div>
+                <div>
+                    <div class="mb-3">
+                        <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Account</p>
+                        <h2 class="title is-5 mb-0"><span class="sensitive"><?= htmlspecialchars($account['id']) ?></span></h2>
+                    </div>
+
+                    <div class="columns is-variable is-2 is-multiline mb-2">
+                        <div class="column is-6-tablet is-3-desktop">
+                            <div class="card">
+                                <div class="card-content p-4">
+                                    <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Net Liquidation</p>
+                                    <p class="title is-4 mb-1"><span class="sensitive"><?= htmlspecialchars($account['netLiquidationDisplay']) ?></span></p>
+                                    <p class="is-size-7 has-text-grey"><?= $account['netLiquidationSource'] ? 'Source: ' . htmlspecialchars($account['netLiquidationSource']) : '&nbsp;' ?></p>
                                 </div>
                             </div>
+                        </div>
+                        <div class="column is-6-tablet is-3-desktop">
+                            <div class="card">
+                                <div class="card-content p-4">
+                                    <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Daily P&amp;L</p>
+                                    <p class="title is-4 mb-1 <?= $dpl === null ? '' : ($dpl < 0 ? 'has-text-danger' : 'has-text-success') ?>">
+                                        <?php if ($dpl === null): ?>
+                                            <span class="has-text-grey">n/a</span>
+                                        <?php else: ?>
+                                            <span class="sensitive"><?= htmlspecialchars(($dpl >= 0 ? '+' : '-') . number_format(abs($dpl), 2)) ?></span>
+                                        <?php endif; ?>
+                                    </p>
+                                    <p class="is-size-7 has-text-grey"><?= htmlspecialchars($baseCurrency) ?> &middot; intraday</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="column is-6-tablet is-3-desktop">
+                            <div class="card">
+                                <div class="card-content p-4">
+                                    <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Unrealized P&amp;L</p>
+                                    <p class="title is-4 mb-1 <?= $upl === null ? '' : ($upl < 0 ? 'has-text-danger' : 'has-text-success') ?>">
+                                        <?php if ($upl === null): ?>
+                                            <span class="has-text-grey">n/a</span>
+                                        <?php else: ?>
+                                            <span class="sensitive"><?= htmlspecialchars(($upl >= 0 ? '+' : '-') . number_format(abs($upl), 2)) ?></span>
+                                        <?php endif; ?>
+                                    </p>
+                                    <p class="is-size-7 has-text-grey"><?= htmlspecialchars($baseCurrency) ?> &middot; open positions</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="column is-6-tablet is-3-desktop">
+                            <div class="card">
+                                <div class="card-content p-4">
+                                    <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Cash</p>
+                                    <p class="title is-4 mb-1">
+                                        <?php if (isset($account['baseCashBalance']) && $account['baseCashBalance'] !== null): ?>
+                                            <span class="sensitive"><?= htmlspecialchars($baseCurrency . ' ' . number_format((float)$account['baseCashBalance'], 2)) ?></span>
+                                        <?php else: ?>
+                                            <span class="has-text-grey">n/a</span>
+                                        <?php endif; ?>
+                                    </p>
+                                    <p class="is-size-7 has-text-grey">
+                                        <?php if (!empty($cashItems)): ?>
+                                            <?php
+                                                $cashParts = [];
+                                                foreach ($cashItems as $balance) {
+                                                    $cashParts[] = htmlspecialchars($balance['currency']) . ' <span class="sensitive">' . htmlspecialchars(number_format($balance['value'], 2)) . '</span>';
+                                                }
+                                            ?>
+                                            <?= implode(' &middot; ', $cashParts) ?>
+                                        <?php else: ?>
+                                            &nbsp;
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <header class="card-header">
+                            <p class="card-header-title"><span class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey">Net Liquidation &middot; Last 30 Days</span></p>
+                            <span class="card-header-icon"><span class="tag is-rounded has-background-link-soft has-text-link-bold"><?= htmlspecialchars($baseCurrency) ?></span></span>
+                        </header>
+                        <?php if ($account['hasPerformanceData']): ?>
+                            <div class="chart-panel m-2">
+                                <canvas id="pnlChart-<?= $index ?>"></canvas>
+                            </div>
+                        <?php else: ?>
+                            <div class="card-content p-4">
+                                <p class="has-text-grey">No 30-day performance data available.</p>
+                            </div>
                         <?php endif; ?>
-                        <div class="card mt-3">
-                            <header class="card-header">
-                                <p class="card-header-title is-size-6">P&amp;L</p>
-                            </header>
-                            <div class="card-content">
-                                <?php
-                                    $pnl = $account['intradayPnl'] ?? [];
-                                    $dpl = $pnl['dpl'] ?? null;
-                                    $upl = $pnl['upl'] ?? null;
-                                    $baseCurrency = $account['chartCurrency'] ?? 'BASE';
-                                ?>
-                                <?php if ($dpl === null && $upl === null): ?>
-                                    <p class="has-text-grey is-size-7">No P&amp;L data available.</p>
-                                <?php else: ?>
-                                    <div class="columns is-mobile is-multiline">
-                                        <div class="column is-half">
-                                            <p class="has-text-grey is-size-7">Daily P&amp;L</p>
-                                            <p class="<?= $dpl !== null && $dpl < 0 ? 'has-text-danger' : 'has-text-success' ?> has-text-weight-semibold">
-                                                <?php if ($dpl === null): ?>
-                                                    n/a
-                                                <?php else: ?>
-                                                    <span class="sensitive"><?= htmlspecialchars($baseCurrency . ' ' . number_format($dpl, 2)) ?></span>
-                                                <?php endif; ?>
-                                            </p>
-                                        </div>
-                                        <div class="column is-half">
-                                            <p class="has-text-grey is-size-7">Unrealized P&amp;L</p>
-                                            <p class="<?= $upl !== null && $upl < 0 ? 'has-text-danger' : 'has-text-success' ?> has-text-weight-semibold">
-                                                <?php if ($upl === null): ?>
-                                                    n/a
-                                                <?php else: ?>
-                                                    <span class="sensitive"><?= htmlspecialchars($baseCurrency . ' ' . number_format($upl, 2)) ?></span>
-                                                <?php endif; ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="column is-8">
-                        <div class="card">
-                            <header class="card-header">
-                                <p class="card-header-title is-size-6">Net Liquidation (last 30 days)</p>
-                            </header>
-                            <div class="card-content p-3">
-                                <?php if ($account['hasPerformanceData']): ?>
-                                    <div class="chart-panel">
-                                        <canvas id="pnlChart-<?= $index ?>"></canvas>
-                                    </div>
-                                <?php else: ?>
-                                    <p class="has-text-grey">No 30-day performance data available.</p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="columns">
-                    <div class="column">
-                        <div class="card">
-                            <header class="card-header">
-                                <p class="card-header-title is-size-6">Positions</p>
-                            </header>
-                            <div class="card-content">
+                    <div class="card">
+                        <header class="card-header">
+                            <p class="card-header-title"><span class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey">Positions</span></p>
+                            <span class="card-header-icon"><span class="tag is-rounded has-background-link-soft has-text-link-bold"><?= count($account['positionsRows']) ?></span></span>
+                        </header>
+                            <div class="card-content p-4">
                                 <?php if ($account['positions'] && $account['positions']['error']): ?>
                                     <div class="notification is-danger is-light">
                                         <?= htmlspecialchars($account['positions']['error']) ?>
@@ -930,19 +974,19 @@ foreach ($accountsView as $index => $account) {
                                     <p class="has-text-grey">No positions available.</p>
                                 <?php else: ?>
                                     <div class="table-container">
-                                        <table class="table is-fullwidth is-striped is-size-7">
+                                        <table class="table is-fullwidth is-striped is-hoverable is-narrow is-size-7">
                                             <thead>
-                                                <tr>
-                                                    <th class="has-text-grey-light">Symbol</th>
-                                                    <th class="has-text-right has-text-grey-light">Position</th>
-                                                    <th class="has-text-right has-text-grey-light">Mkt Price</th>
-                                                    <th class="has-text-right has-text-grey-light">Mkt Value</th>
-                                                    <th class="has-text-grey-light is-narrow">CCY</th>
-                                                    <th class="has-text-right has-text-grey-light">Unrealized P&amp;L</th>
-                                                    <th class="has-text-right has-text-grey-light">Realized P&amp;L</th>
-                                                    <th class="has-text-right has-text-grey-light">Unrealized P&amp;L (<?= htmlspecialchars($account['chartCurrency'] ?? 'BASE') ?>)</th>
-                                                    <th class="has-text-right has-text-grey-light">Realized P&amp;L (<?= htmlspecialchars($account['chartCurrency'] ?? 'BASE') ?>)</th>
-                                                    <th class="has-text-grey-light is-narrow">Asset</th>
+                                                <tr class="is-uppercase">
+                                                    <th>Symbol</th>
+                                                    <th class="has-text-right">Position</th>
+                                                    <th class="has-text-right">Mkt Price</th>
+                                                    <th class="has-text-right">Mkt Value</th>
+                                                    <th class="is-narrow">CCY</th>
+                                                    <th class="has-text-right">Unrealized P&amp;L</th>
+                                                    <th class="has-text-right">Realized P&amp;L</th>
+                                                    <th class="has-text-right">Unrealized P&amp;L (<?= htmlspecialchars($account['chartCurrency'] ?? 'BASE') ?>)</th>
+                                                    <th class="has-text-right">Realized P&amp;L (<?= htmlspecialchars($account['chartCurrency'] ?? 'BASE') ?>)</th>
+                                                    <th class="is-narrow">Asset</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1022,7 +1066,7 @@ foreach ($accountsView as $index => $account) {
                                                         $realizedBaseIsZero = $realizedBase !== null && abs($realizedBase) < 0.000001;
                                                     ?>
                                                     <tr>
-                                                        <td><?= htmlspecialchars((string)$symbol) ?></td>
+                                                        <td class="has-text-weight-semibold"><?= htmlspecialchars((string)$symbol) ?></td>
                                                         <td class="has-text-right">
                                                             <?php if ($positionRaw === null): ?>
                                                                 n/a
@@ -1083,7 +1127,7 @@ foreach ($accountsView as $index => $account) {
                                                                 <?php endif; ?>
                                                             <?php endif; ?>
                                                         </td>
-                                                        <td><?= htmlspecialchars((string)$assetClass) ?></td>
+                                                        <td><span class="tag"><?= htmlspecialchars((string)$assetClass) ?></span></td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
@@ -1091,7 +1135,6 @@ foreach ($accountsView as $index => $account) {
                                     </div>
                                 <?php endif; ?>
                             </div>
-                        </div>
                     </div>
                 </div>
 
@@ -1123,6 +1166,25 @@ foreach ($accountsView as $index => $account) {
 
 <script>
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;
+// Resolve Bulma CSS variables to concrete colors for Chart.js (canvas can't use var()).
+const resolveColor = (name) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${name})`;
+    document.body.appendChild(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+};
+const withAlpha = (color, alpha) => {
+    const [r, g, b] = color.match(/[\d.]+/g);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+const accentColor = resolveColor('--bulma-link');
+const borderColor = resolveColor('--bulma-border-weak');
+if (window.Chart) {
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.color = resolveColor('--bulma-text-weak');
+}
 const privacyToggle = document.getElementById('privacyToggle');
 const ibkrCharts = [];
 const applyChartPrivacy = (chart, enabled) => {
@@ -1136,7 +1198,7 @@ const setPrivacyBlur = (enabled) => {
     document.body.classList.toggle('privacy-blur', enabled);
     if (privacyToggle) {
         privacyToggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-        privacyToggle.setAttribute('data-active', enabled ? 'true' : 'false');
+        privacyToggle.classList.toggle('is-link', enabled);
     }
     ibkrCharts.forEach((chart) => applyChartPrivacy(chart, enabled));
     try {
@@ -1184,11 +1246,25 @@ chartConfigs.forEach((config) => {
             datasets: [{
                 label: 'Net liquidation',
                 data: config.data,
-                borderColor: '#3273dc',
-                backgroundColor: 'rgba(50, 115, 220, 0.15)',
-                tension: 0.25,
+                borderColor: accentColor,
+                borderWidth: 2,
+                backgroundColor: (context) => {
+                    const { ctx: canvasCtx, chartArea } = context.chart;
+                    if (!chartArea) {
+                        return withAlpha(accentColor, 0.1);
+                    }
+                    const gradient = canvasCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    gradient.addColorStop(0, withAlpha(accentColor, 0.28));
+                    gradient.addColorStop(1, withAlpha(accentColor, 0));
+                    return gradient;
+                },
+                tension: 0.3,
                 fill: true,
-                pointRadius: 3,
+                pointRadius: 0,
+                pointHitRadius: 12,
+                pointHoverRadius: 4,
+                pointHoverBackgroundColor: accentColor,
+                pointHoverBorderColor: resolveColor('--bulma-text-strong'),
             }]
         },
         options: {
@@ -1207,6 +1283,14 @@ chartConfigs.forEach((config) => {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    backgroundColor: resolveColor('--bulma-scheme-main-ter'),
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    titleColor: resolveColor('--bulma-text-weak'),
+                    bodyColor: resolveColor('--bulma-text-strong'),
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false,
                     callbacks: {
                         label: (context) => {
                             const value = context.parsed.y;
@@ -1224,7 +1308,14 @@ chartConfigs.forEach((config) => {
                 }
             },
             scales: {
+                x: {
+                    grid: { display: false },
+                    border: { color: borderColor },
+                    ticks: { maxTicksLimit: 10 }
+                },
                 y: {
+                    grid: { color: withAlpha(borderColor, 0.5) },
+                    border: { display: false },
                     ticks: {
                         callback: (value) => formatMoney(value)
                     }
