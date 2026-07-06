@@ -2,7 +2,7 @@
 
 A lightweight PHP dashboard for Interactive Brokers that shows:
 
-- Net liquidation chart with selectable period (7D, MTD, 1M, YTD, 1Y; default last month)
+- Net liquidation chart with selectable period (7D, MTD, 1M, YTD, 1Y; default last 30 days)
 - Positions with P&L and base-currency P&L
 - Cash balances
 - Intraday P&L (partitioned)

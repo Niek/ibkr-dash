@@ -40,9 +40,9 @@ function extractAccountIds($accountsData): array
 const PERFORMANCE_PERIODS = [
     '7D' => 'Last 7 Days',
     'MTD' => 'Month to Date',
-    '1M' => 'Last Month',
+    '1M' => 'Last 30 Days',
     'YTD' => 'Year to Date',
-    '1Y' => 'Last Year',
+    '1Y' => 'Last 12 Months',
 ];
 
 function selectedPerformancePeriod(): string
