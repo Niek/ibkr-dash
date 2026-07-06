@@ -35,19 +35,41 @@ function extractAccountIds($accountsData): array
     return array_values(array_unique($ids));
 }
 
-function formatIbkrDate($value): ?string
+// Periods accepted by the deployed gateway's /pa/performance endpoint; the
+// OpenAPI spec also lists 3M/6M/12M but the gateway rejects them.
+const PERFORMANCE_PERIODS = [
+    '7D' => 'Last 7 Days',
+    'MTD' => 'Month to Date',
+    '1M' => 'Last Month',
+    'YTD' => 'Year to Date',
+    '1Y' => 'Last Year',
+];
+
+function selectedPerformancePeriod(): string
+{
+    $candidate = $_GET['period'] ?? null;
+    if (is_string($candidate)) {
+        $candidate = strtoupper($candidate);
+        if (array_key_exists($candidate, PERFORMANCE_PERIODS)) {
+            return $candidate;
+        }
+    }
+    return '1M';
+}
+
+function formatIbkrDate($value, bool $withYear = false): ?string
 {
     if (!is_string($value) || $value === '') {
         return null;
     }
     $date = DateTimeImmutable::createFromFormat('Ymd', $value);
     if ($date instanceof DateTimeImmutable) {
-        return $date->format('M j');
+        return $date->format($withYear ? "M j 'y" : 'M j');
     }
     return null;
 }
 
-function extractNavSeries($performanceData): array
+function extractNavSeries($performanceData, bool $withYear = false): array
 {
     $result = [
         'labels' => [],
@@ -77,7 +99,7 @@ function extractNavSeries($performanceData): array
 
     $count = min(count($dates), count($navs));
     for ($i = 0; $i < $count; $i++) {
-        $label = formatIbkrDate($dates[$i]);
+        $label = formatIbkrDate($dates[$i], $withYear);
         if ($label === null) {
             continue;
         }
@@ -578,10 +600,21 @@ $gatewayHover = $auth['error']
 
 $partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned');
 $partitionedPnlData = $partitionedPnl['json'] ?? [];
+if (!is_array($partitionedPnlData['upnl'] ?? null) || count($partitionedPnlData['upnl']) === 0) {
+    // The gateway's first pnl request only starts the subscription and returns
+    // an empty payload; bypass the cache so the retry overwrites the cached miss.
+    usleep(500000);
+    $partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned', null, true);
+    $partitionedPnlData = $partitionedPnl['json'] ?? [];
+}
 
 $accounts = apiRequest('GET', '/iserver/accounts');
 $accountData = $accounts['json'] ?? [];
 $accountIds = extractAccountIds($accountData);
+
+$selectedPeriod = selectedPerformancePeriod();
+$periodLabel = PERFORMANCE_PERIODS[$selectedPeriod];
+$labelsWithYear = $selectedPeriod === '1Y';
 
 $accountsView = [];
 foreach ($accountIds as $accountId) {
@@ -592,18 +625,10 @@ foreach ($accountIds as $accountId) {
     $intradayPnl = extractPartitionedPnl($partitionedPnlData, $accountId);
     $performance = apiRequest('POST', '/pa/performance', [
         'acctIds' => [$accountId],
-        'period' => '30D',
+        'period' => $selectedPeriod,
     ]);
     $performanceData = $performance['json'] ?? [];
-    $navSeries = extractNavSeries($performanceData);
-    if (count($navSeries['labels']) === 0) {
-        $performance = apiRequest('POST', '/pa/performance', [
-            'acctIds' => [$accountId],
-            'period' => '1M',
-        ]);
-        $performanceData = $performance['json'] ?? [];
-        $navSeries = extractNavSeries($performanceData);
-    }
+    $navSeries = extractNavSeries($performanceData, $labelsWithYear);
     $positions = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/positions');
     $positionsData = $positions['json'] ?? [];
 
@@ -854,6 +879,13 @@ foreach ($accountsView as $index => $account) {
                     $dpl = $pnl['dpl'] ?? null;
                     $upl = $pnl['upl'] ?? null;
                     $baseCurrency = $account['chartCurrency'] ?? 'BASE';
+                    $periodChangePct = null;
+                    $chartValues = $account['chartData'];
+                    $firstNav = $chartValues[0] ?? null;
+                    $lastNav = $chartValues[count($chartValues) - 1] ?? null;
+                    if (is_numeric($firstNav) && is_numeric($lastNav) && (float)$firstNav != 0.0) {
+                        $periodChangePct = (((float)$lastNav - (float)$firstNav) / abs((float)$firstNav)) * 100;
+                    }
                     $cashItems = [];
                     foreach ($account['cashBalances'] as $balance) {
                         $currency = (string)$balance['currency'];
@@ -946,8 +978,20 @@ foreach ($accountsView as $index => $account) {
 
                     <div class="card mb-4">
                         <header class="card-header">
-                            <p class="card-header-title"><span class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey">Net Liquidation &middot; Last 30 Days</span></p>
-                            <span class="card-header-icon"><span class="tag is-rounded has-background-link-soft has-text-link-bold"><?= htmlspecialchars($baseCurrency) ?></span></span>
+                            <p class="card-header-title"><span class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey">Net Liquidation &middot; <?= htmlspecialchars($periodLabel) ?></span></p>
+                            <div class="card-header-icon">
+                                <?php if ($periodChangePct !== null): ?>
+                                    <span class="tag is-rounded mr-2 has-background-<?= $periodChangePct < 0 ? 'danger' : 'success' ?>-soft has-text-<?= $periodChangePct < 0 ? 'danger' : 'success' ?>-bold"><?= htmlspecialchars(($periodChangePct >= 0 ? '+' : '') . number_format($periodChangePct, 2)) ?>%</span>
+                                <?php endif; ?>
+                                <span class="tag is-rounded has-background-link-soft has-text-link-bold mr-2"><?= htmlspecialchars($baseCurrency) ?></span>
+                                <div class="select is-small">
+                                    <select class="period-select" aria-label="Chart period">
+                                        <?php foreach (PERFORMANCE_PERIODS as $value => $label): ?>
+                                            <option value="<?= htmlspecialchars($value) ?>" <?= $value === $selectedPeriod ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
                         </header>
                         <?php if ($account['hasPerformanceData']): ?>
                             <div class="chart-panel m-2">
@@ -955,7 +999,7 @@ foreach ($accountsView as $index => $account) {
                             </div>
                         <?php else: ?>
                             <div class="card-content p-4">
-                                <p class="has-text-grey">No 30-day performance data available.</p>
+                                <p class="has-text-grey">No performance data available for this period.</p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1220,6 +1264,14 @@ if (privacyToggle) {
         setPrivacyBlur(!document.body.classList.contains('privacy-blur'));
     });
 }
+
+document.querySelectorAll('.period-select').forEach((select) => {
+    select.addEventListener('change', () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('period', select.value);
+        window.location.assign(url);
+    });
+});
 
 chartConfigs.forEach((config) => {
     const ctx = document.getElementById(config.id);

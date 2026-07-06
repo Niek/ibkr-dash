@@ -2,7 +2,7 @@
 
 A lightweight PHP dashboard for Interactive Brokers that shows:
 
-- Net liquidation chart (last 30 days)
+- Net liquidation chart with selectable period (7D, MTD, 1M, YTD, 1Y; default last month)
 - Positions with P&L and base-currency P&L
 - Cash balances
 - Intraday P&L (partitioned)
@@ -79,5 +79,5 @@ php telegram.php
 
 - API calls are cached for 5 minutes when APCu is available.
 - Base-currency P&L uses `/pa/transactions` (days param) for historical FX and cost basis.
-- Intraday P&L uses `/iserver/account/pnl/partitioned`.
+- Intraday P&L uses `/iserver/account/pnl/partitioned`; an empty first response (the gateway's initial subscription request) is retried once, bypassing the cache.
 - The dashboard assumes the Client Portal Gateway is already authenticated.

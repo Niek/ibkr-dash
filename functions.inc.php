@@ -61,7 +61,7 @@ function requireBasicAuthIfConfigured(): void
     }
 }
 
-function apiRequest(string $method, string $path, ?array $payload = null): array
+function apiRequest(string $method, string $path, ?array $payload = null, bool $bypassCache = false): array
 {
     $baseUrl = rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
     $userAgent = 'IBKR-Pulse/1.0';
@@ -100,7 +100,7 @@ function apiRequest(string $method, string $path, ?array $payload = null): array
 
     $url = $baseUrl . $path;
     $cacheKey = 'ibkr_http_' . strtolower($method) . '_' . sha1($url . '|' . ($body ?? '') . '|' . $accept . '|' . $userAgent);
-    if (function_exists('apcu_fetch')) {
+    if (!$bypassCache && function_exists('apcu_fetch')) {
         $cached = apcu_fetch($cacheKey, $success);
         if ($success && is_array($cached)) {
             return $cached;

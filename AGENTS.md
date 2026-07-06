@@ -20,6 +20,7 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 ## UI Features
 - Privacy toggle (eye icon button) in the top-right blurs sensitive amounts and account IDs; percentages and symbols remain visible.
 - When privacy is enabled, the chart Y-axis is hidden to widen the plot area.
+- The chart card header has a period dropdown (7D, MTD, 1M, YTD, 1Y) that reloads the page with `?period=`, plus a tag showing the % change over the visible period.
 
 ## Screenshot Workflow
 1. Start the dev server: `php -S 127.0.0.1:5080`.
@@ -47,6 +48,6 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 - Copy `.env.example` to `.env` and keep gateway host/port there (git-ignored).
 
 ## API Reference
-- Key endpoints in use: `/iserver/auth/status`, `/iserver/accounts`, `/iserver/account/pnl/partitioned`, `/portfolio/{accountId}/summary`, `/portfolio/{accountId}/ledger`, `/portfolio/{accountId}/positions`, `/pa/performance` (period `30D`, fallback `1M`), `/pa/transactions` (`days` param, default 3650; only when positions are non-base currency) for base-currency cost/P&L.
+- Key endpoints in use: `/iserver/auth/status`, `/iserver/accounts`, `/iserver/account/pnl/partitioned`, `/portfolio/{accountId}/summary`, `/portfolio/{accountId}/ledger`, `/portfolio/{accountId}/positions`, `/pa/performance` (period from `?period=` query param: `7D`, `MTD`, `1M` default, `YTD`, `1Y`; the deployed gateway rejects the spec-listed `3M`/`6M`/`12M`), `/pa/transactions` (`days` param, default 3650; only when positions are non-base currency) for base-currency cost/P&L.
 - See `api.md` for a concise summary of the IBKR Client Portal OpenAPI spec and key endpoints used by this dashboard.
 - Always check the OpenAPI spec before implementing or changing any API calls (parameter names, allowed values, and constraints).
