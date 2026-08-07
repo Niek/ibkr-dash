@@ -1236,7 +1236,6 @@ const applyChartPrivacy = (chart, enabled) => {
         return;
     }
     chart.options.scales.y.display = !enabled;
-    chart.options.plugins.tooltip.enabled = !enabled;
     chart.update('none');
 };
 const setPrivacyBlur = (enabled) => {
@@ -1347,7 +1346,7 @@ chartConfigs.forEach((config) => {
                     callbacks: {
                         label: (context) => {
                             const value = context.parsed.y;
-                            const labelValue = formatMoney(value);
+                            const labelValue = document.body.classList.contains('privacy-blur') ? '••••••' : formatMoney(value);
                             const idx = context.dataIndex;
                             const series = context.dataset.data;
                             if (idx > 0 && typeof series[idx - 1] === 'number' && series[idx - 1] !== 0) {
