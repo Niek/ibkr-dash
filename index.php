@@ -799,6 +799,25 @@ foreach ($accountsView as $index => $account) {
             width: 100% !important;
             height: 100% !important;
         }
+        .chart-tooltip {
+            position: absolute;
+            z-index: 1;
+            padding: 10px;
+            border: 1px solid var(--bulma-border-weak);
+            border-radius: 8px;
+            background: var(--bulma-scheme-main-ter);
+            color: var(--bulma-text-strong);
+            font-size: 0.75rem;
+            line-height: 1.2;
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .chart-tooltip-title {
+            margin-bottom: 0.35rem;
+            color: var(--bulma-text-weak);
+            font-weight: 600;
+        }
         .sensitive {
             transition: filter 150ms ease;
         }
@@ -1252,6 +1271,45 @@ const setPrivacyBlur = (enabled) => {
     }
 };
 
+const renderChartTooltip = ({ chart, tooltip }, formatMoney) => {
+    let element = chart.canvas.parentNode.querySelector('.chart-tooltip');
+    if (!element) {
+        element = document.createElement('div');
+        element.className = 'chart-tooltip';
+        element.innerHTML = '<div class="chart-tooltip-title"></div><div><span class="sensitive"></span><span class="chart-tooltip-percent"></span></div>';
+        chart.canvas.parentNode.appendChild(element);
+    }
+
+    if (tooltip.opacity === 0 || !tooltip.dataPoints.length) {
+        element.style.opacity = 0;
+        return;
+    }
+
+    const point = tooltip.dataPoints[0];
+    const value = point.parsed.y;
+    const index = point.dataIndex;
+    const previous = point.dataset.data[index - 1];
+    let percentage = '';
+    if (index > 0 && typeof previous === 'number' && previous !== 0) {
+        const change = ((value - previous) / previous) * 100;
+        percentage = ` (${change >= 0 ? '+' : ''}${change.toFixed(2)}%)`;
+    }
+
+    element.querySelector('.chart-tooltip-title').textContent = tooltip.title?.[0] ?? '';
+    element.querySelector('.sensitive').textContent = formatMoney(value);
+    element.querySelector('.chart-tooltip-percent').textContent = percentage;
+    element.style.opacity = 1;
+
+    const halfWidth = element.offsetWidth / 2;
+    const positionX = chart.canvas.offsetLeft + tooltip.caretX;
+    const positionY = chart.canvas.offsetTop + tooltip.caretY;
+    element.style.left = `${Math.max(halfWidth, Math.min(positionX, chart.canvas.offsetWidth - halfWidth))}px`;
+    element.style.top = `${positionY}px`;
+    element.style.transform = tooltip.caretY < element.offsetHeight + 8
+        ? 'translate(-50%, 8px)'
+        : 'translate(-50%, calc(-100% - 8px))';
+};
+
 if (privacyToggle) {
     let initial = false;
     try {
@@ -1333,30 +1391,8 @@ chartConfigs.forEach((config) => {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    backgroundColor: resolveColor('--bulma-scheme-main-ter'),
-                    borderColor: borderColor,
-                    borderWidth: 1,
-                    titleColor: resolveColor('--bulma-text-weak'),
-                    bodyColor: resolveColor('--bulma-text-strong'),
-                    padding: 10,
-                    cornerRadius: 8,
-                    displayColors: false,
-                    callbacks: {
-                        label: (context) => {
-                            const value = context.parsed.y;
-                            const labelValue = document.body.classList.contains('privacy-blur') ? '••••••' : formatMoney(value);
-                            const idx = context.dataIndex;
-                            const series = context.dataset.data;
-                            if (idx > 0 && typeof series[idx - 1] === 'number' && series[idx - 1] !== 0) {
-                                const pct = ((value - series[idx - 1]) / series[idx - 1]) * 100;
-                                const pctLabel = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
-                                return `${labelValue} (${pctLabel})`;
-                            }
-                            return labelValue;
-                        }
-                    }
+                    enabled: false,
+                    external: (context) => renderChartTooltip(context, formatMoney)
                 }
             },
             scales: {
