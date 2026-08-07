@@ -1236,6 +1236,7 @@ const applyChartPrivacy = (chart, enabled) => {
         return;
     }
     chart.options.scales.y.display = !enabled;
+    chart.options.plugins.tooltip.enabled = !enabled;
     chart.update('none');
 };
 const setPrivacyBlur = (enabled) => {
