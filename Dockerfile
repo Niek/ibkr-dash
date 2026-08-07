@@ -1,12 +1,11 @@
 FROM alpine:latest
 
-ARG PHP_PKG=php83
+ARG PHP_PKG=php85
 
 RUN apk add --no-cache \
         ${PHP_PKG} \
         ${PHP_PKG}-cli \
         ${PHP_PKG}-openssl \
-        ${PHP_PKG}-opcache \
         ${PHP_PKG}-pecl-apcu \
         ca-certificates \
     && ln -sf /usr/bin/${PHP_PKG} /usr/bin/php \
