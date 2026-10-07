@@ -5,12 +5,12 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 
 ## Project Structure & Module Organization
 - `index.php`: current entrypoint (renders gateway status, loops accounts, pulls performance/positions, intraday P&L, cash balances).
-- `dashboard.inc.php`: dashboard parsing and calculation helpers (ledger, P&L, transactions, `computePositionRow`); no side effects, so it can be unit tested.
+- `dashboard.inc.php`: dashboard parsing and calculation helpers (ledger, P&L, transactions, `computePositionRow`).
 - `functions.inc.php`: shared helpers for env loading, basic auth, gateway requests, and account/NAV parsing (used by `index.php`, `telegram.php`, `healthcheck.php`).
 - `telegram.php`: CLI daily report sent to Telegram.
 - `api.md`: concise IBKR Client Portal OpenAPI notes and key endpoints.
 - `.env` / `.env.example`: local configuration for gateway base URL and headers.
-- `tests/`: PHPUnit tests for parsing and P&L helpers.
+- `tests/`: automated tests (when added).
 
 ## Build, Test, and Development Commands
 - `php -S 127.0.0.1:5080`: run the local dev server (serves `index.php`).
@@ -38,10 +38,9 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 - Keep IBKR API wrapper methods aligned to endpoint intent (e.g., `getPortfolioSummary`).
 
 ## Testing Guidelines
-- PHPUnit lives in `tests/` with `*Test.php` names; install with `composer install` and run `vendor/bin/phpunit` (or `composer test`).
-- Tests load `functions.inc.php` and `dashboard.inc.php` only, so keep those free of side effects and the gateway out of tests.
+- No test framework is configured yet. If adding tests, use PHPUnit in `tests/` with `*Test.php` names.
 - Prioritize coverage for API response parsing, aggregation logic, and error handling.
-- CI (`.github/workflows/build.yaml`) lints every PHP file and runs PHPUnit before building the Docker image.
+- CI (`.github/workflows/build.yaml`) lints every PHP file with `php -l` before building the Docker image.
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits for commit messages (e.g., `feat(ui): add privacy toggle`, `fix: handle empty positions`).

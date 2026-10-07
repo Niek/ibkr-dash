@@ -54,13 +54,6 @@ Open:
 http://127.0.0.1:5080/
 ```
 
-## Tests
-
-```bash
-composer install
-vendor/bin/phpunit
-```
-
 ## Docker
 
 ```bash

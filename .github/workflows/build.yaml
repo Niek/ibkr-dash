@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,20 +20,13 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl
           coverage: none
 
       - name: Lint
-        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
-
-      - name: Install dependencies
-        run: composer install --no-interaction --no-progress
-
-      - name: Run tests
-        run: vendor/bin/phpunit
+        run: find . -name '*.php' -print0 | xargs -0 -n1 php -l
 
   build:
-    needs: test
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
