@@ -279,7 +279,7 @@ function extractPartitionedPnl($pnlData, string $accountId): array
         if (!is_string($key) || !is_array($value)) {
             continue;
         }
-        if ($accountId !== '' && str_starts_with($key, $accountId)) {
+        if ($accountId !== '' && ($key === $accountId || str_starts_with($key, $accountId . '.'))) {
             $candidates[$key] = $value;
         }
     }
