@@ -1066,10 +1066,10 @@ foreach ($accountsView as $index => $account) {
                                                         $avgCostRaw = is_numeric($row['avgCost'] ?? null) ? (float)$row['avgCost'] : null;
                                                         $costBasis = ($positionRaw !== null && $avgCostRaw !== null) ? $positionRaw * $avgCostRaw : null;
                                                         $unrealizedPct = ($unrealized !== null && $costBasis !== null && $costBasis != 0.0)
-                                                            ? ($unrealized / $costBasis) * 100
+                                                            ? ($unrealized / abs($costBasis)) * 100
                                                             : null;
                                                         $realizedPct = ($realized !== null && $costBasis !== null && $costBasis != 0.0)
-                                                            ? ($realized / $costBasis) * 100
+                                                            ? ($realized / abs($costBasis)) * 100
                                                             : null;
                                                         $baseCurrency = $account['chartCurrency'] ?? '';
                                                         $fxRate = extractFxRateToBase($account['ledgerData'] ?? [], (string)$currency, $baseCurrency);
@@ -1096,7 +1096,7 @@ foreach ($accountsView as $index => $account) {
                                                                 $baseCost = $positionRaw * $avgCostRaw * $avgFxRate;
                                                                 if ($baseCost != 0.0) {
                                                                     $unrealizedBase = $currentValueBase - $baseCost;
-                                                                    $unrealizedBasePct = ($unrealizedBase / $baseCost) * 100;
+                                                                    $unrealizedBasePct = ($unrealizedBase / abs($baseCost)) * 100;
                                                                 }
                                                                 if ($realized !== null) {
                                                                     $realizedBase = $realized * $avgFxRate;
