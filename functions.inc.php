@@ -51,10 +51,13 @@ function requireBasicAuthIfConfigured(): void
 
     header('Cache-Control: no-cache, must-revalidate, max-age=0');
 
-    $providedUser = $_SERVER['PHP_AUTH_USER'] ?? null;
-    $providedPass = $_SERVER['PHP_AUTH_PW'] ?? null;
+    $providedUser = (string)($_SERVER['PHP_AUTH_USER'] ?? '');
+    $providedPass = (string)($_SERVER['PHP_AUTH_PW'] ?? '');
 
-    if ($providedUser !== $username || $providedPass !== $password) {
+    // Evaluate both comparisons so timing doesn't reveal which field was wrong.
+    $userOk = hash_equals($username, $providedUser);
+    $passOk = hash_equals($password, $providedPass);
+    if (!$userOk || !$passOk) {
         header('HTTP/1.1 401 Authorization Required');
         header('WWW-Authenticate: Basic realm="Access denied"');
         exit;
