@@ -17,7 +17,7 @@ The app depends on the IBKR Client Portal Gateway. For long-lived sessions, [ibe
 
 ## Requirements
 
-- PHP 8.x (tested with built-in server)
+- PHP 8.x with the curl extension (tested with built-in server)
 - IBKR Client Portal Gateway running locally
 - APCu (optional, but recommended for 5‑minute API caching)
 
@@ -77,7 +77,8 @@ php telegram.php
 
 ## Notes
 
-- API calls are cached for 5 minutes when APCu is available.
+- API calls are cached for 5 minutes when APCu is available (the gateway auth status is always fetched live, and error responses are never cached).
+- Gateway requests run in parallel (up to 4 at a time) via `curl_multi`. If the session is not authenticated, no account data is requested.
 - Base-currency P&L uses `/pa/transactions` (days param) for historical FX and cost basis.
 - Intraday P&L uses `/iserver/account/pnl/partitioned`; an empty first response (the gateway's initial subscription request) is retried once, bypassing the cache.
 - The dashboard assumes the Client Portal Gateway is already authenticated.

@@ -21,38 +21,53 @@ $gatewayHover = $auth['error']
     ? $auth['error']
     : 'Server: ' . $serverName . ' | Version: ' . $serverVersion;
 
-$partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned');
-$partitionedPnlData = $partitionedPnl['json'] ?? [];
-if (!is_array($partitionedPnlData['upnl'] ?? null) || count($partitionedPnlData['upnl']) === 0) {
-    // The gateway's first pnl request only starts the subscription and returns
-    // an empty payload; bypass the cache so the retry overwrites the cached miss.
-    usleep(500000);
-    $partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned', null, true);
-    $partitionedPnlData = $partitionedPnl['json'] ?? [];
-}
-
-$accounts = apiRequest('GET', '/iserver/accounts');
-$accountData = $accounts['json'] ?? [];
-$accountIds = extractAccountIds($accountData);
+$gatewayReady = !$auth['error'] && $authOk;
 
 $selectedPeriod = selectedPerformancePeriod();
 $periodLabel = PERFORMANCE_PERIODS[$selectedPeriod];
 $labelsWithYear = $selectedPeriod === '1Y';
 
-$accountsView = [];
-foreach ($accountIds as $accountId) {
-    $summary = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/summary');
-    $summaryData = $summary['json'] ?? [];
-    $ledger = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/ledger');
-    $ledgerData = $ledger['json'] ?? [];
-    $intradayPnl = extractPartitionedPnl($partitionedPnlData, $accountId);
-    $performance = apiRequest('POST', '/pa/performance', [
+$accountIds = [];
+$partitionedPnlData = [];
+if ($gatewayReady) {
+    // Skip all account calls when the session isn't usable; each would only wait for a timeout.
+    $initial = apiRequestMany([
+        'pnl' => ['GET', '/iserver/account/pnl/partitioned'],
+        'accounts' => ['GET', '/iserver/accounts'],
+    ]);
+    $partitionedPnlData = $initial['pnl']['json'] ?? [];
+    if (!is_array($partitionedPnlData['upnl'] ?? null) || count($partitionedPnlData['upnl']) === 0) {
+        // The gateway's first pnl request only starts the subscription and returns
+        // an empty payload; bypass the cache so the retry overwrites the cached miss.
+        usleep(500000);
+        $partitionedPnl = apiRequest('GET', '/iserver/account/pnl/partitioned', null, true);
+        $partitionedPnlData = $partitionedPnl['json'] ?? [];
+    }
+    $accountIds = extractAccountIds($initial['accounts']['json'] ?? []);
+}
+
+$accountRequests = [];
+foreach ($accountIds as $i => $accountId) {
+    $accountPath = '/portfolio/' . rawurlencode($accountId);
+    $accountRequests[$i . ':summary'] = ['GET', $accountPath . '/summary'];
+    $accountRequests[$i . ':ledger'] = ['GET', $accountPath . '/ledger'];
+    $accountRequests[$i . ':performance'] = ['POST', '/pa/performance', [
         'acctIds' => [$accountId],
         'period' => $selectedPeriod,
-    ]);
-    $performanceData = $performance['json'] ?? [];
+    ]];
+    $accountRequests[$i . ':positions'] = ['GET', $accountPath . '/positions'];
+}
+$accountResponses = apiRequestMany($accountRequests);
+
+$accountsView = [];
+$transactionRequests = [];
+foreach ($accountIds as $i => $accountId) {
+    $summaryData = $accountResponses[$i . ':summary']['json'] ?? [];
+    $ledgerData = $accountResponses[$i . ':ledger']['json'] ?? [];
+    $intradayPnl = extractPartitionedPnl($partitionedPnlData, $accountId);
+    $performanceData = $accountResponses[$i . ':performance']['json'] ?? [];
     $navSeries = extractNavSeries($performanceData, $labelsWithYear);
-    $positions = apiRequest('GET', '/portfolio/' . rawurlencode($accountId) . '/positions');
+    $positions = $accountResponses[$i . ':positions'];
     $positionsData = $positions['json'] ?? [];
 
     $netLiquidation = extractNetLiquidation($summaryData, $ledgerData);
@@ -94,27 +109,19 @@ foreach ($accountIds as $accountId) {
         }
     }
 
-    $transactionsByConid = [];
-    $conids = [];
+    // Foreign-currency positions need their trade history for base-currency cost.
     foreach ($positionsRows as $row) {
         $rowCurrency = (string)($row['currency'] ?? '');
         if ($rowCurrency !== '' && $rowCurrency !== $chartCurrency && is_numeric($row['conid'] ?? null)) {
-            $conids[(int)$row['conid']] = true;
+            $conid = (int)$row['conid'];
+            $transactionRequests[$i . ':' . $conid] = ['POST', '/pa/transactions', [
+                'acctIds' => [$accountId],
+                'conids' => [$conid],
+                'currency' => $chartCurrency,
+                'days' => (int)env('IBKR_TXN_DAYS', '3650'),
+            ]];
         }
     }
-    foreach (array_keys($conids) as $conid) {
-        $transactions = apiRequest('POST', '/pa/transactions', [
-            'acctIds' => [$accountId],
-            'conids' => [$conid],
-            'currency' => $chartCurrency,
-            'days' => (int)env('IBKR_TXN_DAYS', '3650'),
-        ]);
-        $grouped = groupTransactionsByConid($transactions['json'] ?? [], $chartCurrency);
-        if (isset($grouped[$conid])) {
-            $transactionsByConid[$conid] = $grouped[$conid];
-        }
-    }
-
 
     usort($positionsRows, function (array $a, array $b): int {
         $aValue = is_numeric($a['mktValue'] ?? null) ? (float)$a['mktValue'] : 0.0;
@@ -122,7 +129,7 @@ foreach ($accountIds as $accountId) {
         return $bValue <=> $aValue;
     });
 
-    $accountsView[] = [
+    $accountsView[$i] = [
         'id' => $accountId,
         'ledgerData' => $ledgerData,
         'netLiquidationDisplay' => $netLiquidationDisplay,
@@ -136,8 +143,16 @@ foreach ($accountIds as $accountId) {
         'hasPerformanceData' => $hasPerformanceData,
         'positions' => $positions,
         'positionsRows' => $positionsRows,
-        'transactionsByConid' => $transactionsByConid,
+        'transactionsByConid' => [],
     ];
+}
+
+foreach (apiRequestMany($transactionRequests) as $key => $transactions) {
+    [$i, $conid] = array_map('intval', explode(':', (string)$key, 2));
+    $grouped = groupTransactionsByConid($transactions['json'] ?? [], $accountsView[$i]['chartCurrency']);
+    if (isset($grouped[$conid])) {
+        $accountsView[$i]['transactionsByConid'][$conid] = $grouped[$conid];
+    }
 }
 
 $chartConfigs = [];
@@ -310,7 +325,11 @@ foreach ($accountsView as $index => $account) {
             <h1 class="title is-4 mb-1">Interactive Brokers Dashboard</h1>
             <p class="is-size-7 has-text-grey">Gateway: <?= htmlspecialchars($auth['url']) ?></p>
         </div>
-        <?php if (count($accountsView) === 0): ?>
+        <?php if (!$gatewayReady): ?>
+            <div class="notification is-warning is-light">
+                The gateway session is not authenticated, so no account data was loaded.
+            </div>
+        <?php elseif (count($accountsView) === 0): ?>
             <div class="notification is-warning is-light">
                 No accounts returned from the gateway. Check your session and permissions.
             </div>

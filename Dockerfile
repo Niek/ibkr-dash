@@ -5,6 +5,7 @@ ARG PHP_PKG=php85
 RUN apk add --no-cache \
         ${PHP_PKG} \
         ${PHP_PKG}-cli \
+        ${PHP_PKG}-curl \
         ${PHP_PKG}-openssl \
         ${PHP_PKG}-pecl-apcu \
         ca-certificates \

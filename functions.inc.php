@@ -69,68 +69,124 @@ function gatewayBaseUrl(): string
     return rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
 }
 
+// Upper bound on simultaneous gateway requests; the Client Portal Gateway
+// throttles bursts and /iserver/marketdata/history allows 5 concurrent calls.
+const API_MAX_CONCURRENCY = 4;
+
 function apiRequest(string $method, string $path, ?array $payload = null, bool $bypassCache = false): array
+{
+    return apiRequestMany(['request' => [$method, $path, $payload]], $bypassCache)['request'];
+}
+
+/**
+ * Run several gateway requests concurrently (curl_multi), returning responses keyed
+ * like $requests. Each request is [method, path, payload?]. Each response has
+ * url, raw, json, error and status; successful JSON responses are cached in APCu.
+ */
+function apiRequestMany(array $requests, bool $bypassCache = false): array
 {
     $baseUrl = gatewayBaseUrl();
     $userAgent = 'IBKR-Pulse/1.0';
     $accept = 'application/json';
     $insecure = true;
-    $method = strtoupper($method);
-    $timeout = $method === 'POST' ? 15 : 10;
+    $useCache = function_exists('apcu_fetch');
 
-    $headers = [
-        'Accept: ' . $accept,
-        'User-Agent: ' . $userAgent,
-    ];
+    $responses = [];
+    $pending = [];
+    foreach ($requests as $key => $request) {
+        $method = strtoupper((string)$request[0]);
+        $payload = $request[2] ?? null;
+        $headers = [
+            'Accept: ' . $accept,
+            'User-Agent: ' . $userAgent,
+        ];
+        $body = null;
+        if ($payload !== null) {
+            $headers[] = 'Content-Type: application/json';
+            $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $body = $body === false ? '{}' : $body;
+        }
+        $url = $baseUrl . $request[1];
+        $cacheKey = 'ibkr_http_' . strtolower($method) . '_' . sha1($url . '|' . ($body ?? '') . '|' . $accept . '|' . $userAgent);
 
-    $body = null;
-    if ($payload !== null) {
-        $headers[] = 'Content-Type: application/json';
-        $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!$bypassCache && $useCache) {
+            $cached = apcu_fetch($cacheKey, $success);
+            if ($success && is_array($cached)) {
+                $responses[$key] = $cached;
+                continue;
+            }
+        }
+
+        $handle = curl_init($url);
+        curl_setopt_array($handle, [
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $method === 'POST' ? 15 : 10,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_SSL_VERIFYPEER => !$insecure,
+            CURLOPT_SSL_VERIFYHOST => $insecure ? 0 : 2,
+        ]);
+        if ($body !== null) {
+            curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
+        }
+        $pending[$key] = ['handle' => $handle, 'url' => $url, 'cacheKey' => $cacheKey];
     }
 
-    $http = [
-        'method' => $method,
-        'header' => implode("\r\n", $headers),
-        'timeout' => $timeout,
-    ];
-    if ($body !== null) {
-        $http['content'] = $body === false ? '{}' : $body;
-    }
+    $multi = curl_multi_init();
+    $queue = array_keys($pending);
+    $active = [];
+    $start = static function () use (&$queue, &$active, $pending, $multi): void {
+        while (count($active) < API_MAX_CONCURRENCY && $queue !== []) {
+            $key = array_shift($queue);
+            curl_multi_add_handle($multi, $pending[$key]['handle']);
+            $active[spl_object_id($pending[$key]['handle'])] = $key;
+        }
+    };
 
-    $context = stream_context_create([
-        'http' => $http,
-        'ssl' => [
-            'verify_peer' => !$insecure,
-            'verify_peer_name' => !$insecure,
-        ],
-    ]);
+    $start();
+    while ($active !== []) {
+        curl_multi_exec($multi, $running);
+        if ($running > 0 && curl_multi_select($multi, 1.0) === -1) {
+            usleep(1000);
+        }
+        while (($info = curl_multi_info_read($multi)) !== false) {
+            $handle = $info['handle'];
+            $key = $active[spl_object_id($handle)];
+            unset($active[spl_object_id($handle)]);
+            curl_multi_remove_handle($multi, $handle);
 
-    $url = $baseUrl . $path;
-    $cacheKey = 'ibkr_http_' . strtolower($method) . '_' . sha1($url . '|' . ($body ?? '') . '|' . $accept . '|' . $userAgent);
-    if (!$bypassCache && function_exists('apcu_fetch')) {
-        $cached = apcu_fetch($cacheKey, $success);
-        if ($success && is_array($cached)) {
-            return $cached;
+            $raw = curl_multi_getcontent($handle);
+            $status = (int)curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+            $error = null;
+            if ($info['result'] !== CURLE_OK) {
+                $error = curl_error($handle) ?: curl_strerror($info['result']);
+                $raw = false;
+            } elseif ($status >= 400) {
+                $error = 'HTTP ' . $status . ' from ' . $pending[$key]['url'];
+                $raw = false;
+            }
+
+            $response = [
+                'url' => $pending[$key]['url'],
+                'raw' => $raw,
+                'json' => is_string($raw) && $raw !== '' ? json_decode($raw, true) : null,
+                'error' => $error,
+                'status' => $status,
+            ];
+            // Only cache well-formed successes so a transient error isn't served for 5 minutes.
+            $cacheable = is_array($response['json']) && !array_key_exists('error', $response['json']);
+            if ($cacheable && $useCache) {
+                apcu_store($pending[$key]['cacheKey'], $response, 300);
+            }
+            $responses[$key] = $response;
+            $start();
         }
     }
-    $raw = @file_get_contents($url, false, $context);
-    $error = $raw === false ? error_get_last() : null;
+    curl_multi_close($multi);
 
-    $response = [
-        'url' => $url,
-        'raw' => $raw,
-        'json' => $raw ? json_decode($raw, true) : null,
-        'error' => $error['message'] ?? null,
-    ];
-
-    // Only cache well-formed successes so a transient error isn't served for 5 minutes.
-    $cacheable = is_array($response['json']) && !array_key_exists('error', $response['json']);
-    if ($cacheable && function_exists('apcu_store')) {
-        apcu_store($cacheKey, $response, 300);
-    }
-
-    return $response;
+    // Preserve the caller's key order.
+    return array_replace(array_intersect_key($requests, $responses), $responses);
 }
 
 function extractAccountIds($accountsData): array
