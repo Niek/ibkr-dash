@@ -588,7 +588,8 @@ function extractNetLiquidation($summaryData, $ledgerData): array
 loadEnv(__DIR__ . '/.env');
 requireBasicAuthIfConfigured();
 
-$auth = apiRequest('GET', '/iserver/auth/status');
+// Always fetch live session status so the gateway badges never lag behind.
+$auth = apiRequest('GET', '/iserver/auth/status', null, true);
 $authData = $auth['json'] ?? [];
 $authOk = is_array($authData) && ($authData['authenticated'] ?? false) === true;
 $connected = is_array($authData) && ($authData['connected'] ?? false) === true;

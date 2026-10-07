@@ -6,7 +6,7 @@ require_once __DIR__ . '/functions.inc.php';
 
 loadEnv(__DIR__ . '/.env');
 
-$response = apiRequest('GET', '/iserver/auth/status');
+$response = apiRequest('GET', '/iserver/auth/status', null, true);
 $data = $response['json'] ?? null;
 
 if (!is_array($data)) {
