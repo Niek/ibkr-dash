@@ -178,8 +178,8 @@ foreach ($accountsView as $index => $account) {
     <meta name="theme-color" content="#0a0d15">
     <title>IBKR Dashboard</title>
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y+mAAAAllBMVEUiIiIhISEgICAfHx8eHh4dHR0cHBwbGxsaGhoZGRkYGBgVHBwqHB0XFxcAHR1vHSA6HBwNHBxaHR+kHiMAGhkWFhYzHB3ZICdGHB3MICa6HyTkIShjHR/hICgVFRWGHiJ8HSAAGRjTICdQHR+VHiIUFBSrHiSxHyMAFRXAHyV0Gx4TExMvFhcAExMSEhKbHSHFHyUREREv0J8IAAABR0lEQVR4AV3SBRaDMBAEUOq4uzuh3vtfrrsJSyUt+t8MQSQcGxjb7Xa32+8Ph+PxdJJlWVFVVSAZoqYjKoDGl4mgadnyYgaVkjmu56MpYMFfqRZGsUbB4LdUOySpv1rwW2qmWe4IQ6SgMK9IvoKlRAZoVkVRNx9DpFLTKqL2pJBxpFKni6Ki97+Cg0SlWtgC6tqXAYpS7ZiAjf5qhPyCUwHoOk3TMAoC8lK/B4tm36nS9MwWu0jLTD0MWs2Im57x0gsimMCkibMIx3XgBrgnLKqmxnK49G1AvAOCHXnSbjpKogFyO/qAiWcwPuf+Juwb0/TBgv45V0yUAnI7ASZTOveMsRsTs0HkhphOafqsGNwi2WvFaASck/pWUikgN9kfnxyfiXVbgy+Jm9x404JtfiMjdKqH543C7TuaQPF9M9YwnCqMOwVfb9LjO/4TNVnRAAAAAElFTkSuQmCC">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1/css/bulma.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" integrity="sha384-DCY3M8xLkMu6c9IKcKbe+jHKMjelnwC0p+SBaxfHxoBYZWdJF2X400UdBCgATtAB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
     <style>
         :root {
             --privacy-blur: 6px;
