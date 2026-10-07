@@ -132,3 +132,95 @@ function apiRequest(string $method, string $path, ?array $payload = null, bool $
 
     return $response;
 }
+
+function extractAccountIds($accountsData): array
+{
+    if (!is_array($accountsData)) {
+        return [];
+    }
+
+    $list = $accountsData;
+    if (isset($accountsData['accounts']) && is_array($accountsData['accounts'])) {
+        $list = $accountsData['accounts'];
+    }
+
+    $ids = [];
+    foreach ($list as $item) {
+        if (is_string($item) && $item !== '') {
+            $ids[] = $item;
+            continue;
+        }
+        if (!is_array($item)) {
+            continue;
+        }
+        $candidate = $item['accountId'] ?? $item['id'] ?? $item['account'] ?? null;
+        if (is_string($candidate) && $candidate !== '') {
+            $ids[] = $candidate;
+        }
+    }
+
+    return array_values(array_unique($ids));
+}
+
+function formatIbkrDate($value, bool $withYear = false): ?string
+{
+    if (!is_string($value) || $value === '') {
+        return null;
+    }
+    $date = DateTimeImmutable::createFromFormat('Ymd', $value);
+    if ($date instanceof DateTimeImmutable) {
+        return $date->format($withYear ? "M j 'y" : 'M j');
+    }
+    return null;
+}
+
+function extractNavSeries($performanceData, bool $withYear = false): array
+{
+    $result = [
+        'labels' => [],
+        'values' => [],
+        'currency' => null,
+        'rawDates' => [],
+    ];
+
+    if (!is_array($performanceData)) {
+        return $result;
+    }
+
+    $nav = $performanceData['nav'] ?? null;
+    if (!is_array($nav)) {
+        return $result;
+    }
+
+    $dates = $nav['dates'] ?? null;
+    $data = $nav['data'] ?? null;
+    if (!is_array($dates) || !is_array($data) || !isset($data[0]) || !is_array($data[0])) {
+        return $result;
+    }
+
+    $navs = $data[0]['navs'] ?? null;
+    if (!is_array($navs)) {
+        return $result;
+    }
+
+    $count = min(count($dates), count($navs));
+    for ($i = 0; $i < $count; $i++) {
+        $label = formatIbkrDate($dates[$i], $withYear);
+        if ($label === null) {
+            continue;
+        }
+        if (!is_numeric($navs[$i])) {
+            continue;
+        }
+        $result['labels'][] = $label;
+        $result['values'][] = round((float)$navs[$i], 2);
+        $result['rawDates'][] = (string)$dates[$i];
+    }
+
+    $currency = $data[0]['baseCurrency'] ?? null;
+    if (is_string($currency) && $currency !== '') {
+        $result['currency'] = $currency;
+    }
+
+    return $result;
+}
