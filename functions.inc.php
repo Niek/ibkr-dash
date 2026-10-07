@@ -61,9 +61,14 @@ function requireBasicAuthIfConfigured(): void
     }
 }
 
+function gatewayBaseUrl(): string
+{
+    return rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
+}
+
 function apiRequest(string $method, string $path, ?array $payload = null, bool $bypassCache = false): array
 {
-    $baseUrl = rtrim(env('GATEWAY_BASE_URL', 'https://localhost:5050/v1/api'), '/');
+    $baseUrl = gatewayBaseUrl();
     $userAgent = 'IBKR-Pulse/1.0';
     $accept = 'application/json';
     $insecure = true;

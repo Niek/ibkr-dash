@@ -1207,7 +1207,7 @@ foreach ($accountsView as $index => $account) {
 
         <?php if (!$connected): ?>
             <div class="notification is-light">
-                Ensure the Client Portal Gateway is running on <strong>localhost:5050</strong> (or update <code>.env</code>).
+                Ensure the Client Portal Gateway is running at <strong><?= htmlspecialchars(gatewayBaseUrl()) ?></strong> (or update <code>GATEWAY_BASE_URL</code> in <code>.env</code>).
                 For long-lived sessions, consider running <code>ibeam</code>.
             </div>
         <?php endif; ?>
