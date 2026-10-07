@@ -129,7 +129,7 @@ function extractFxRateToBase($ledgerData, string $currency, ?string $baseCurrenc
         return null;
     }
 
-    foreach (['fxRateToBase', 'fxRate', 'exchangeRate'] as $key) {
+    foreach (['exchangerate', 'fxRateToBase', 'fxRate', 'exchangeRate'] as $key) {
         if (array_key_exists($key, $entry) && is_numeric($entry[$key])) {
             return (float)$entry[$key];
         }
