@@ -408,7 +408,7 @@ $spReturn = $spConid !== null ? fetchHistoryChange($spConid) : null;
 $nasdaqReturn = $nasdaqConid !== null ? fetchHistoryChange($nasdaqConid) : null;
 
 $lines = [];
-$lines[] = mdBold('📉 Portfolio Report: ' . $reportDate);
+$lines[] = mdBold(trendEmoji($dailyPnl) . ' Portfolio Report: ' . $reportDate);
 $lines[] = '';
 $lines[] = mdBold('Overview');
 $lines[] = '• Daily P&L: ' . mdCode(formatMoney($dailyPnl, $baseCurrency, true)) . ' \\(' . emojiForChange($dailyPct) . ' ' . mdCode(formatPercent($dailyPct, 2, true)) . '\\)';
