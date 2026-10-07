@@ -75,7 +75,6 @@ foreach ($accountIds as $i => $accountId) {
     $baseCashBalance = extractBaseCashBalance($ledgerData);
     $netLiquidationValue = $netLiquidation['value'];
     $netLiquidationCurrency = $netLiquidation['currency'];
-    $netLiquidationSource = $netLiquidation['source'];
     if (is_array($netLiquidationValue)) {
         if ($netLiquidationCurrency === null) {
             $netLiquidationCurrency = extractCurrencyFromValue($netLiquidationValue);
@@ -133,7 +132,6 @@ foreach ($accountIds as $i => $accountId) {
         'id' => $accountId,
         'ledgerData' => $ledgerData,
         'netLiquidationDisplay' => $netLiquidationDisplay,
-        'netLiquidationSource' => $netLiquidationSource,
         'cashBalances' => $cashBalances,
         'baseCashBalance' => $baseCashBalance,
         'intradayPnl' => $intradayPnl,
@@ -292,8 +290,8 @@ foreach ($accountsView as $index => $account) {
                 <?php if ($auth['error']): ?>
                     <span class="tag is-rounded has-background-danger-soft has-text-danger-bold"><span class="dot mr-1"></span>Gateway Error</span>
                 <?php else: ?>
-                    <span class="tag is-rounded has-background-<?= $authOk ? 'success' : 'warning' ?>-soft has-text-<?= $authOk ? 'success' : 'warning' ?>-bold mr-2"><span class="dot mr-1"></span>Authenticated</span>
-                    <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span>Connected</span>
+                    <span class="tag is-rounded has-background-<?= $authOk ? 'success' : 'warning' ?>-soft has-text-<?= $authOk ? 'success' : 'warning' ?>-bold mr-2"><span class="dot mr-1"></span><?= $authOk ? 'Authenticated' : 'Not authenticated' ?></span>
+                    <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span><?= $connected ? 'Connected' : 'Disconnected' ?></span>
                 <?php endif; ?>
             </div>
             <div class="navbar-item pl-0">
@@ -319,7 +317,7 @@ foreach ($accountsView as $index => $account) {
         <div class="mb-5">
             <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Portfolio Overview</p>
             <h1 class="title is-4 mb-1">Interactive Brokers Dashboard</h1>
-            <p class="is-size-7 has-text-grey">Gateway: <?= htmlspecialchars($auth['url']) ?></p>
+            <p class="is-size-7 has-text-grey">Gateway: <?= htmlspecialchars(gatewayBaseUrl()) ?></p>
         </div>
         <?php if (!$gatewayReady): ?>
             <div class="notification is-warning is-light">
@@ -370,7 +368,7 @@ foreach ($accountsView as $index => $account) {
                                 <div class="card-content p-4">
                                     <p class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey mb-1">Net Liquidation</p>
                                     <p class="title is-4 mb-1"><span class="sensitive"><?= htmlspecialchars($account['netLiquidationDisplay']) ?></span></p>
-                                    <p class="is-size-7 has-text-grey"><?= $account['netLiquidationSource'] ? 'Source: ' . htmlspecialchars($account['netLiquidationSource']) : '&nbsp;' ?></p>
+                                    <p class="is-size-7 has-text-grey">Total account value</p>
                                 </div>
                             </div>
                         </div>
