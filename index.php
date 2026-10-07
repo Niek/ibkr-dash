@@ -279,40 +279,36 @@ foreach ($accountsView as $index => $account) {
 <body>
 <nav class="navbar" role="navigation" aria-label="main navigation">
     <div class="container">
-        <div class="navbar-brand">
+        <div class="navbar-brand is-flex-grow-1">
             <span class="navbar-item">
-                <span class="icon brand-mark mr-2">
+                <span class="icon brand-mark">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <path d="M3 17l5-6 4 4 6-9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </span>
-                <span class="has-text-weight-bold">IBKR&nbsp;<span class="has-text-link">Dash</span></span>
+                <span class="has-text-weight-bold ml-2 is-hidden-mobile">IBKR&nbsp;<span class="has-text-link">Dash</span></span>
             </span>
-        </div>
-        <div class="navbar-menu is-active">
-            <div class="navbar-end">
-                <div class="navbar-item" title="<?= htmlspecialchars($gatewayHover) ?>">
-                    <?php if ($auth['error']): ?>
-                        <span class="tag is-rounded has-background-danger-soft has-text-danger-bold"><span class="dot mr-1"></span>Gateway Error</span>
-                    <?php else: ?>
-                        <span class="tag is-rounded has-background-<?= $authOk ? 'success' : 'warning' ?>-soft has-text-<?= $authOk ? 'success' : 'warning' ?>-bold mr-2"><span class="dot mr-1"></span>Authenticated</span>
-                        <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span>Connected</span>
-                    <?php endif; ?>
-                </div>
-                <div class="navbar-item">
-                    <button class="button" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">
-                        <span class="icon">
-                        <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                            <line x1="1" y1="1" x2="23" y2="23"/>
-                        </svg>
-                        </span>
-                    </button>
-                </div>
+            <div class="navbar-item ml-auto px-2" title="<?= htmlspecialchars($gatewayHover) ?>">
+                <?php if ($auth['error']): ?>
+                    <span class="tag is-rounded has-background-danger-soft has-text-danger-bold"><span class="dot mr-1"></span>Gateway Error</span>
+                <?php else: ?>
+                    <span class="tag is-rounded has-background-<?= $authOk ? 'success' : 'warning' ?>-soft has-text-<?= $authOk ? 'success' : 'warning' ?>-bold mr-2"><span class="dot mr-1"></span>Authenticated</span>
+                    <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span>Connected</span>
+                <?php endif; ?>
+            </div>
+            <div class="navbar-item pl-0">
+                <button class="button" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">
+                    <span class="icon">
+                    <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                    </span>
+                </button>
             </div>
         </div>
     </div>
