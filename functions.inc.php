@@ -116,7 +116,9 @@ function apiRequest(string $method, string $path, ?array $payload = null, bool $
         'error' => $error['message'] ?? null,
     ];
 
-    if ($raw !== false && function_exists('apcu_store')) {
+    // Only cache well-formed successes so a transient error isn't served for 5 minutes.
+    $cacheable = is_array($response['json']) && !array_key_exists('error', $response['json']);
+    if ($cacheable && function_exists('apcu_store')) {
         apcu_store($cacheKey, $response, 300);
     }
 
