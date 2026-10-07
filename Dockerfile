@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     && echo "apc.enable_cli=1" > /etc/${PHP_PKG}/conf.d/50_apcu.ini
 
 WORKDIR /app
-COPY . /app
+COPY *.php /app/
 
 EXPOSE 5080
 
