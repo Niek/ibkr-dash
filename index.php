@@ -434,7 +434,7 @@ foreach ($accountsView as $index => $account) {
                     </div>
 
                     <div class="card mb-4">
-                        <header class="card-header">
+                        <header class="card-header is-flex-wrap-wrap">
                             <p class="card-header-title"><span class="is-size-7 is-uppercase has-text-weight-semibold has-text-grey">Net Liquidation &middot; <?= htmlspecialchars($periodLabel) ?></span></p>
                             <div class="card-header-icon">
                                 <?php if ($periodChangePct !== null): ?>
@@ -773,7 +773,7 @@ chartConfigs.forEach((config) => {
                 x: {
                     grid: { display: false },
                     border: { color: borderColor },
-                    ticks: { maxTicksLimit: 10 }
+                    ticks: { maxTicksLimit: 10, maxRotation: 0 }
                 },
                 y: {
                     grid: { color: withAlpha(borderColor, 0.5) },
