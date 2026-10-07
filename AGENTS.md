@@ -5,6 +5,9 @@ This repository hosts a lightweight PHP dashboard for Interactive Brokers (net l
 
 ## Project Structure & Module Organization
 - `index.php`: current entrypoint (renders gateway status, loops accounts, pulls performance/positions, intraday P&L, cash balances).
+- `dashboard.inc.php`: dashboard parsing and calculation helpers (ledger, P&L, transactions, `computePositionRow`); no side effects, so it can be unit tested.
+- `functions.inc.php`: shared helpers for env loading, basic auth, gateway requests, and account/NAV parsing (used by `index.php`, `telegram.php`, `healthcheck.php`).
+- `telegram.php`: CLI daily report sent to Telegram.
 - `api.md`: concise IBKR Client Portal OpenAPI notes and key endpoints.
 - `.env` / `.env.example`: local configuration for gateway base URL and headers.
 - `tests/`: automated tests (when added).
