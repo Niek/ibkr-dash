@@ -83,4 +83,4 @@ php telegram.php
 - Base-currency P&L uses `/pa/transactions` (days param) for historical FX and cost basis.
 - Intraday P&L uses `/iserver/account/pnl/partitioned`; an empty first response (the gateway's initial subscription request) is retried once, bypassing the cache.
 - The dashboard assumes the Client Portal Gateway is already authenticated.
-- Notifications refresh every minute while the page is visible, and when opening the bell. The dot indicates unread messages among the latest 10 FYIs, not the full Message Center inbox. Read status updates only after the gateway acknowledges the change; notification calls bypass the API cache. Message text follows the privacy toggle.
+- Notifications load once per page load, like the portfolio stats. The dot indicates unread messages among the latest 10 FYIs, not the full Message Center inbox. Read status updates only after the gateway acknowledges the change; notification calls bypass the API cache. Message text follows the privacy toggle.

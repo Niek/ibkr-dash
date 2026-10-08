@@ -671,9 +671,6 @@ foreach ($accountsView as $index => $account) {
     const endpoint = new URL(window.location.href);
     endpoint.search = '?notifications=1';
     let messages = [];
-    let loading = false;
-    let lastFetch = 0;
-    let pending = 0;
 
     const updateBadge = () => {
         const hasUnread = messages.some(message => !message.read);
@@ -719,7 +716,6 @@ foreach ($accountsView as $index => $account) {
             details.addEventListener('toggle', async () => {
                 if (!details.open || message.read || marking) return;
                 marking = true;
-                pending++;
                 error.hidden = true;
                 try {
                     await request({
@@ -735,7 +731,6 @@ foreach ($accountsView as $index => $account) {
                     error.hidden = false;
                 } finally {
                     marking = false;
-                    pending--;
                 }
             });
             list.append(details);
@@ -744,21 +739,14 @@ foreach ($accountsView as $index => $account) {
         status.hidden = messages.length > 0;
         updateBadge();
     };
-    const refresh = async () => {
-        if (loading || pending || list.querySelector('details[open]') || Date.now() - lastFetch < 5000) return;
-        loading = true;
-        lastFetch = Date.now();
+    const loadNotifications = async () => {
         try {
             const data = await request();
-            // A message may have been opened while this fetch was in flight.
-            if (pending || list.querySelector('details[open]')) return;
             messages = data.notifications;
             render();
         } catch (failure) {
-            status.textContent = messages.length ? 'Could not refresh notifications. Showing the previous results.' : failure.message;
+            status.textContent = failure.message;
             status.hidden = false;
-        } finally {
-            loading = false;
         }
     };
     const close = () => {
@@ -770,14 +758,12 @@ foreach ($accountsView as $index => $account) {
         if (!panel.hidden) return close();
         panel.hidden = false;
         toggle.setAttribute('aria-expanded', 'true');
-        refresh();
     });
     document.addEventListener('click', event => { if (!root.contains(event.target)) close(); });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !panel.hidden) { close(); toggle.focus(); }
     });
-    refresh();
-    setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+    loadNotifications();
 })();
 
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;
