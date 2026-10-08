@@ -73,7 +73,7 @@ function gatewayBaseUrl(): string
 // throttles bursts and /iserver/marketdata/history allows 5 concurrent calls.
 const API_MAX_CONCURRENCY = 4;
 
-function apiRequest(string $method, string $path, ?array $payload = null, bool $bypassCache = false): array
+function apiRequest(string $method, string $path, array|object|null $payload = null, bool $bypassCache = false): array
 {
     return apiRequestMany(['request' => [$method, $path, $payload]], $bypassCache)['request'];
 }

@@ -7,6 +7,7 @@ A lightweight PHP dashboard for Interactive Brokers that shows:
 - Cash balances
 - Intraday P&L (partitioned)
 - Gateway status
+- Header notifications bell with the latest 10 IBKR FYIs; opening a message marks it as read in IBKR
 - Privacy toggle to blur sensitive amounts for sharing
 
 The app depends on the IBKR Client Portal Gateway. For long-lived sessions, [ibeam](https://github.com/Voyz/ibeam) is recommended.
@@ -82,3 +83,4 @@ php telegram.php
 - Base-currency P&L uses `/pa/transactions` (days param) for historical FX and cost basis.
 - Intraday P&L uses `/iserver/account/pnl/partitioned`; an empty first response (the gateway's initial subscription request) is retried once, bypassing the cache.
 - The dashboard assumes the Client Portal Gateway is already authenticated.
+- Notifications refresh every minute while the page is visible, and when opening the bell. The dot indicates unread messages among the latest 10 FYIs, not the full Message Center inbox. Read status updates only after the gateway acknowledges the change; notification calls bypass the API cache. Message text follows the privacy toggle.

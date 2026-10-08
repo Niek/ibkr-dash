@@ -10,6 +10,11 @@ $pageStart = microtime(true);
 loadEnv(__DIR__ . '/.env');
 requireBasicAuthIfConfigured();
 
+if (isset($_GET['notifications'])) {
+    require_once __DIR__ . '/notifications.inc.php';
+    handleNotificationsRequest();
+}
+
 // Always fetch live session status so the gateway badges never lag behind.
 $auth = apiRequest('GET', '/iserver/auth/status', null, true);
 $authData = $auth['json'] ?? [];
@@ -272,6 +277,44 @@ foreach ($accountsView as $index => $account) {
         #privacyToggle.is-link .eye-closed {
             display: inline;
         }
+        .notifications { position: relative; }
+        .header-actions { gap: 0.5rem; }
+        .notifications [hidden] { display: none !important; }
+        .notification-unread {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--bulma-danger);
+        }
+        .notifications-panel {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: min(390px, calc(100vw - 24px));
+            max-height: min(560px, calc(100dvh - 90px));
+            overflow-y: auto;
+            border: 1px solid var(--bulma-border);
+            border-radius: 12px;
+            background: var(--bulma-scheme-main);
+            box-shadow: 0 12px 36px #0005;
+        }
+        .notification-message { border-top: 1px solid var(--bulma-border-weak); }
+        .notification-message summary { cursor: pointer; padding: 14px 16px; }
+        .notification-message summary:focus-visible { outline: 2px solid var(--bulma-link); outline-offset: -3px; }
+        .notification-message:not(.is-read) summary { font-weight: 600; }
+        .notification-message:not(.is-read) summary::marker { color: var(--bulma-link); }
+        .notification-message time { display: block; margin-top: 4px; font-size: 0.7rem; font-weight: 400; color: var(--bulma-text-weak); }
+        .notification-body { padding: 0 16px 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .notification-message summary { overflow-wrap: anywhere; }
+        @media screen and (max-width: 768px) {
+            .notifications-panel { position: fixed; top: 62px; right: 12px; }
+            .gateway-status { gap: 0.4rem; }
+            .gateway-status .tag { font-size: 0.65rem; margin-right: 0 !important; }
+            .header-actions .button { width: 36px; height: 36px; padding: 0; }
+        }
     </style>
 </head>
 <body>
@@ -286,7 +329,7 @@ foreach ($accountsView as $index => $account) {
                 </span>
                 <span class="has-text-weight-bold ml-2 is-hidden-mobile">IBKR&nbsp;<span class="has-text-link">Dash</span></span>
             </span>
-            <div class="navbar-item ml-auto px-2" title="<?= htmlspecialchars($gatewayHover) ?>">
+            <div class="navbar-item gateway-status ml-auto px-2" title="<?= htmlspecialchars($gatewayHover) ?>">
                 <?php if ($auth['error']): ?>
                     <span class="tag is-rounded has-background-danger-soft has-text-danger-bold"><span class="dot mr-1"></span>Gateway Error</span>
                 <?php else: ?>
@@ -294,7 +337,25 @@ foreach ($accountsView as $index => $account) {
                     <span class="tag is-rounded has-background-<?= $connected ? 'success' : 'warning' ?>-soft has-text-<?= $connected ? 'success' : 'warning' ?>-bold"><span class="dot mr-1"></span><?= $connected ? 'Connected' : 'Disconnected' ?></span>
                 <?php endif; ?>
             </div>
-            <div class="navbar-item pl-0">
+            <div class="navbar-item header-actions pl-0">
+                <div class="notifications" id="notifications">
+                    <button class="button" id="notificationsToggle" type="button" aria-expanded="false" aria-controls="notificationsPanel" aria-label="Notifications" title="Notifications">
+                        <span class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
+                            </svg>
+                        </span>
+                        <span class="notification-unread" id="notificationsUnread" hidden></span>
+                    </button>
+                    <section class="notifications-panel" id="notificationsPanel" aria-label="IBKR notifications" hidden>
+                        <div class="px-4 py-3">
+                            <p class="has-text-weight-semibold">Notifications</p>
+                            <p class="is-size-7 has-text-grey">Latest 10 IBKR FYIs</p>
+                        </div>
+                        <p class="px-4 pb-3 is-size-7" id="notificationsStatus" role="status">Loading notifications…</p>
+                        <div id="notificationsList" class="is-size-7"></div>
+                    </section>
+                </div>
                 <button class="button" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">
                     <span class="icon">
                     <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -600,6 +661,125 @@ foreach ($accountsView as $index => $account) {
 </footer>
 
 <script>
+(() => {
+    const root = document.getElementById('notifications');
+    const toggle = document.getElementById('notificationsToggle');
+    const panel = document.getElementById('notificationsPanel');
+    const status = document.getElementById('notificationsStatus');
+    const list = document.getElementById('notificationsList');
+    const unread = document.getElementById('notificationsUnread');
+    const endpoint = new URL(window.location.href);
+    endpoint.search = '?notifications=1';
+    let messages = [];
+    let loading = false;
+    let lastFetch = 0;
+    let pending = 0;
+
+    const updateBadge = () => {
+        const hasUnread = messages.some(message => !message.read);
+        unread.hidden = !hasUnread;
+        toggle.setAttribute('aria-label', hasUnread ? 'Notifications — unread messages' : 'Notifications');
+        toggle.title = hasUnread ? 'Unread messages among the latest 10 FYIs' : 'Notifications';
+    };
+    const request = async (options = {}) => {
+        const response = await fetch(endpoint, {cache: 'no-store', ...options});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Notifications are unavailable.');
+        return data;
+    };
+    const render = () => {
+        list.replaceChildren();
+        for (const message of messages) {
+            const details = document.createElement('details');
+            details.className = 'notification-message';
+            details.classList.toggle('is-read', message.read);
+            const summary = document.createElement('summary');
+            const subject = document.createElement('span');
+            subject.className = 'sensitive';
+            subject.textContent = message.subject || 'IBKR notification';
+            summary.append(subject);
+            if (message.timestamp !== null) {
+                const date = new Date(message.timestamp * 1000);
+                if (!Number.isNaN(date.getTime())) {
+                    const time = document.createElement('time');
+                    time.dateTime = date.toISOString();
+                    time.textContent = date.toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'});
+                    summary.append(time);
+                }
+            }
+            const body = document.createElement('div');
+            body.className = 'notification-body sensitive';
+            body.textContent = message.body;
+            const error = document.createElement('p');
+            error.className = 'px-4 pb-3 has-text-danger';
+            error.setAttribute('role', 'alert');
+            error.hidden = true;
+            details.append(summary, body, error);
+            let marking = false;
+            details.addEventListener('toggle', async () => {
+                if (!details.open || message.read || marking) return;
+                marking = true;
+                pending++;
+                error.hidden = true;
+                try {
+                    await request({
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-IBKR-Notifications': '1'},
+                        body: JSON.stringify({id: message.id}),
+                    });
+                    message.read = true;
+                    details.classList.add('is-read');
+                    updateBadge();
+                } catch (failure) {
+                    error.textContent = failure.message;
+                    error.hidden = false;
+                } finally {
+                    marking = false;
+                    pending--;
+                }
+            });
+            list.append(details);
+        }
+        status.textContent = messages.length ? '' : 'No recent notifications.';
+        status.hidden = messages.length > 0;
+        updateBadge();
+    };
+    const refresh = async () => {
+        if (loading || pending || list.querySelector('details[open]') || Date.now() - lastFetch < 5000) return;
+        loading = true;
+        lastFetch = Date.now();
+        try {
+            const data = await request();
+            // A message may have been opened while this fetch was in flight.
+            if (pending || list.querySelector('details[open]')) return;
+            messages = data.notifications;
+            render();
+        } catch (failure) {
+            status.textContent = messages.length ? 'Could not refresh notifications. Showing the previous results.' : failure.message;
+            status.hidden = false;
+        } finally {
+            loading = false;
+        }
+    };
+    const close = () => {
+        panel.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        list.querySelectorAll('details[open]').forEach(details => { details.open = false; });
+    };
+    toggle.addEventListener('click', () => {
+        if (!panel.hidden) return close();
+        panel.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        refresh();
+    });
+    document.addEventListener('click', event => { if (!root.contains(event.target)) close(); });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !panel.hidden) { close(); toggle.focus(); }
+    });
+    refresh();
+    setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+})();
+
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;
 // Resolve Bulma CSS variables to concrete colors for Chart.js (canvas can't use var()).
 const resolveColor = (name) => {

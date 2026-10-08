@@ -49,6 +49,11 @@ Servers listed in the spec: `https://localhost:5000` (Client Portal Gateway), `h
 - `POST /iserver/reply/{replyId}`: confirm or answer order replies.
 - Alerts: `POST /iserver/account/{accountId}/alert`, `GET /iserver/account/{accountId}/alerts`.
 
+## FYI Notifications
+- FYI notifications: `GET /fyi/notifications?max=10` (maximum 10; optional `id` for pagination). Fields: `ID`, `MS` (subject), `MD` (HTML body), `D` (Unix seconds), `R` (0 unread / 1 read).
+- Mark an FYI read: `PUT /fyi/notifications/{notificationId}` with an empty JSON object (`{}`) and `Content-Type: application/json`. The spec omits the body, but the deployed gateway rejects a bodyless request (411) and accepts `{}` (verified 2026-10-08). Verify response `V=1`, `P.R=1`, and matching `P.ID`. These endpoints serve FYIs, not the full Message Center inbox.
+- `GET /fyi/unreadnumber` returns `BN`; its spec documents a 423 if called more than once per five minutes. The dashboard uses unread state from the latest messages instead.
+
 ## Watchlists & Scanners
 - `GET /iserver/watchlists` and `GET|POST|DELETE /iserver/watchlist`.
 - `GET /iserver/scanner/params` and `POST /iserver/scanner/run`.
