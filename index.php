@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/functions.inc.php';
 require_once __DIR__ . '/dashboard.inc.php';
+require_once __DIR__ . '/notifications.inc.php';
 
 $pageStart = microtime(true);
 
@@ -11,12 +12,22 @@ loadEnv(__DIR__ . '/.env');
 requireBasicAuthIfConfigured();
 
 if (isset($_GET['notifications'])) {
-    require_once __DIR__ . '/notifications.inc.php';
     handleNotificationsRequest();
 }
 
-// Always fetch live session status so the gateway badges never lag behind.
-$auth = apiRequest('GET', '/iserver/auth/status', null, true);
+// Load live session status and notifications together, once per page load.
+$startup = apiRequestMany([
+    'auth' => ['GET', '/iserver/auth/status'],
+    'notifications' => ['GET', '/fyi/notifications?max=10'],
+], true);
+$notifications = [];
+$notificationsError = null;
+try {
+    $notifications = parseNotifications($startup['notifications']);
+} catch (RuntimeException $error) {
+    $notificationsError = $error->getMessage();
+}
+$auth = $startup['auth'];
 $authData = $auth['json'] ?? [];
 $authOk = is_array($authData) && ($authData['authenticated'] ?? false) === true;
 $connected = is_array($authData) && ($authData['connected'] ?? false) === true;
@@ -352,8 +363,23 @@ foreach ($accountsView as $index => $account) {
                             <p class="has-text-weight-semibold">Notifications</p>
                             <p class="is-size-7 has-text-grey">Latest 10 IBKR FYIs</p>
                         </div>
-                        <p class="px-4 pb-3 is-size-7" id="notificationsStatus" role="status">Loading notifications…</p>
-                        <div id="notificationsList" class="is-size-7"></div>
+                        <?php if (!$notifications): ?>
+                            <p class="px-4 pb-3 is-size-7" role="status"><?= htmlspecialchars($notificationsError ?? 'No recent notifications.') ?></p>
+                        <?php endif; ?>
+                        <div class="is-size-7">
+                            <?php foreach ($notifications as $message): ?>
+                                <details class="notification-message <?= (int)$message['R'] === 1 ? 'is-read' : '' ?>" data-id="<?= htmlspecialchars($message['ID']) ?>">
+                                    <summary>
+                                        <span class="sensitive"><?= htmlspecialchars(notificationText($message['MS']) ?: 'IBKR notification') ?></span>
+                                        <?php if (is_numeric($message['D'] ?? null)): ?>
+                                            <time data-timestamp="<?= htmlspecialchars((string)$message['D']) ?>" hidden></time>
+                                        <?php endif; ?>
+                                    </summary>
+                                    <div class="notification-body sensitive"><?= htmlspecialchars(notificationText($message['MD'])) ?></div>
+                                    <p class="px-4 pb-3 has-text-danger" role="alert" hidden></p>
+                                </details>
+                            <?php endforeach; ?>
+                        </div>
                     </section>
                 </div>
                 <button class="button" id="privacyToggle" type="button" aria-pressed="false" aria-label="Blur sensitive amounts" title="Blur sensitive amounts">
@@ -665,94 +691,50 @@ foreach ($accountsView as $index => $account) {
     const root = document.getElementById('notifications');
     const toggle = document.getElementById('notificationsToggle');
     const panel = document.getElementById('notificationsPanel');
-    const status = document.getElementById('notificationsStatus');
-    const list = document.getElementById('notificationsList');
     const unread = document.getElementById('notificationsUnread');
-    const endpoint = new URL(window.location.href);
-    endpoint.search = '?notifications=1';
-    let messages = [];
-
     const updateBadge = () => {
-        const hasUnread = messages.some(message => !message.read);
+        const hasUnread = !!root.querySelector('.notification-message:not(.is-read)');
         unread.hidden = !hasUnread;
         toggle.setAttribute('aria-label', hasUnread ? 'Notifications — unread messages' : 'Notifications');
         toggle.title = hasUnread ? 'Unread messages among the latest 10 FYIs' : 'Notifications';
     };
-    const request = async (options = {}) => {
-        const response = await fetch(endpoint, {cache: 'no-store', ...options});
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Notifications are unavailable.');
-        return data;
-    };
-    const render = () => {
-        list.replaceChildren();
-        for (const message of messages) {
-            const details = document.createElement('details');
-            details.className = 'notification-message';
-            details.classList.toggle('is-read', message.read);
-            const summary = document.createElement('summary');
-            const subject = document.createElement('span');
-            subject.className = 'sensitive';
-            subject.textContent = message.subject || 'IBKR notification';
-            summary.append(subject);
-            if (message.timestamp !== null) {
-                const date = new Date(message.timestamp * 1000);
-                if (!Number.isNaN(date.getTime())) {
-                    const time = document.createElement('time');
-                    time.dateTime = date.toISOString();
-                    time.textContent = date.toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'});
-                    summary.append(time);
-                }
-            }
-            const body = document.createElement('div');
-            body.className = 'notification-body sensitive';
-            body.textContent = message.body;
-            const error = document.createElement('p');
-            error.className = 'px-4 pb-3 has-text-danger';
-            error.setAttribute('role', 'alert');
+    for (const time of root.querySelectorAll('time')) {
+        const date = new Date(Number(time.dataset.timestamp) * 1000);
+        if (!Number.isNaN(date.getTime())) {
+            time.dateTime = date.toISOString();
+            time.textContent = date.toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'});
+            time.hidden = false;
+        }
+    }
+    for (const details of root.querySelectorAll('.notification-message')) {
+        const error = details.querySelector('[role="alert"]');
+        let marking = false;
+        details.addEventListener('toggle', async () => {
+            if (!details.open || details.classList.contains('is-read') || marking) return;
+            marking = true;
             error.hidden = true;
-            details.append(summary, body, error);
-            let marking = false;
-            details.addEventListener('toggle', async () => {
-                if (!details.open || message.read || marking) return;
-                marking = true;
-                error.hidden = true;
-                try {
-                    await request({
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-IBKR-Notifications': '1'},
-                        body: JSON.stringify({id: message.id}),
-                    });
-                    message.read = true;
-                    details.classList.add('is-read');
-                    updateBadge();
-                } catch (failure) {
-                    error.textContent = failure.message;
-                    error.hidden = false;
-                } finally {
-                    marking = false;
-                }
-            });
-            list.append(details);
-        }
-        status.textContent = messages.length ? '' : 'No recent notifications.';
-        status.hidden = messages.length > 0;
-        updateBadge();
-    };
-    const loadNotifications = async () => {
-        try {
-            const data = await request();
-            messages = data.notifications;
-            render();
-        } catch (failure) {
-            status.textContent = failure.message;
-            status.hidden = false;
-        }
-    };
+            try {
+                const response = await fetch('?notifications=1', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-IBKR-Notifications': '1'},
+                    body: JSON.stringify({id: details.dataset.id}),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Could not mark this message as read.');
+                details.classList.add('is-read');
+                updateBadge();
+            } catch (failure) {
+                error.textContent = failure.message;
+                error.hidden = false;
+            } finally {
+                marking = false;
+            }
+        });
+    }
     const close = () => {
         panel.hidden = true;
         toggle.setAttribute('aria-expanded', 'false');
-        list.querySelectorAll('details[open]').forEach(details => { details.open = false; });
+        root.querySelectorAll('details[open]').forEach(details => { details.open = false; });
     };
     toggle.addEventListener('click', () => {
         if (!panel.hidden) return close();
@@ -763,7 +745,7 @@ foreach ($accountsView as $index => $account) {
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !panel.hidden) { close(); toggle.focus(); }
     });
-    loadNotifications();
+    updateBadge();
 })();
 
 const chartConfigs = <?= json_encode($chartConfigs, JSON_UNESCAPED_SLASHES) ?>;

@@ -20,37 +20,29 @@ function notificationsResponse(int $status, array $body): never
     exit;
 }
 
+/** Validate the gateway feed before rendering any message content. */
+function parseNotifications(array $response): array
+{
+    $notifications = $response['json'];
+    if ($response['error'] || !is_array($notifications) || !array_is_list($notifications)) {
+        throw new RuntimeException('Notifications are unavailable. Check your gateway connection.');
+    }
+    foreach ($notifications as $item) {
+        if (!is_array($item) || !is_string($item['ID'] ?? null)
+            || !is_string($item['MS'] ?? null) || !is_string($item['MD'] ?? null)
+            || !in_array($item['R'] ?? null, [0, 1, '0', '1'], true)) {
+            throw new RuntimeException('The gateway returned an unexpected notification format.');
+        }
+    }
+    usort($notifications, static fn(array $a, array $b): int => (float)($b['D'] ?? 0) <=> (float)($a['D'] ?? 0));
+    return $notifications;
+}
+
 function handleNotificationsRequest(): never
 {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    if ($method === 'GET') {
-        $response = apiRequest('GET', '/fyi/notifications?max=10', null, true);
-        $data = $response['json'];
-        if ($response['error'] || !is_array($data) || !array_is_list($data)) {
-            notificationsResponse(502, ['error' => 'Notifications are unavailable. Check your gateway connection.']);
-        }
-
-        $notifications = [];
-        foreach ($data as $item) {
-            if (!is_array($item) || !is_string($item['ID'] ?? null)
-                || !is_string($item['MS'] ?? null) || !is_string($item['MD'] ?? null)
-                || !in_array($item['R'] ?? null, [0, 1, '0', '1'], true)) {
-                notificationsResponse(502, ['error' => 'The gateway returned an unexpected notification format.']);
-            }
-            $notifications[] = [
-                'id' => $item['ID'],
-                'subject' => notificationText($item['MS']),
-                'body' => notificationText($item['MD']),
-                'read' => (int)$item['R'] === 1,
-                'timestamp' => is_numeric($item['D'] ?? null) ? (float)$item['D'] : null,
-            ];
-        }
-        usort($notifications, static fn(array $a, array $b): int => ($b['timestamp'] ?? 0) <=> ($a['timestamp'] ?? 0));
-        notificationsResponse(200, ['notifications' => $notifications]);
-    }
-
     if ($method !== 'POST') {
-        header('Allow: GET, POST');
+        header('Allow: POST');
         notificationsResponse(405, ['error' => 'Method not allowed.']);
     }
 
