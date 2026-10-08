@@ -355,8 +355,8 @@ foreach ($accountsView as $index => $account) {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
                             </svg>
+                            <span class="notification-unread" id="notificationsUnread" hidden></span>
                         </span>
-                        <span class="notification-unread" id="notificationsUnread" hidden></span>
                     </button>
                     <section class="notifications-panel" id="notificationsPanel" aria-label="IBKR notifications" hidden>
                         <div class="px-4 py-3">
